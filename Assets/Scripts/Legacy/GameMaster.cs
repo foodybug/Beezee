@@ -22,13 +22,13 @@ public class GameMaster : MonoBehaviour
 	public CardPile cardPile_SabreCard;
 	public CardPile cardPile_SabreCard_Discard;
 	public TMP_Text txtResult;
-	public Player curActionPlayer;
-	public Player curOppositePlayer;
+	public Bee curActionPlayer;
+	public Bee curOppositePlayer;
 
 	SM<GameMaster> sm;
 
-	public Player playerL;
-	public Player playerR;
+	public Bee playerL;
+	public Bee playerR;
 
 	[SerializeField] float drawSpeed = 0.2f;
 	[SerializeField] public float lerpSpeed = 0.1f;
@@ -78,8 +78,8 @@ public class GameMaster : MonoBehaviour
 		{
 			owner.cardPile_SabreCard.Shuffle();
 
-			owner.playerL.Init("Left Player", idxInitHeroPositionL);
-			owner.playerR.Init("Right Player", idxInitHeroPositionR);
+			owner.playerL.Init("Left Bee", idxInitHeroPositionL);
+			owner.playerR.Init("Right Bee", idxInitHeroPositionR);
 
 			for(int i = 0; i < cntHandSize; ++i)
 			{
@@ -262,7 +262,7 @@ public class GameMaster : MonoBehaviour
             {
                 if(owner.curOppositePlayer.CheckMovable(owner.curActionPlayer.idxHeroPosition) == true)
                 {
-                    Player temp = owner.curActionPlayer;
+                    Bee temp = owner.curActionPlayer;
                     owner.curActionPlayer = owner.curOppositePlayer;
                     owner.curOppositePlayer = temp;
 
@@ -335,7 +335,7 @@ public class GameMaster : MonoBehaviour
         void OnWin(MsgBase m)
         {
             Msg_Win w = m as Msg_Win;
-            owner.txtResult.text = w.player.playerName + "' WIN";
+            owner.txtResult.text = w.Bee.playerName + "' WIN";
         }
         #endregion
     }

@@ -26,7 +26,7 @@ public class Card : MonoBehaviour, IMsgProc
 		material = GetComponent<MeshRenderer>().material;
 
 		sm = new SM<Card>(this, (a) => {
-			Debug.Log($"[Player] SM<Player>:: ChangeState: type = {a}");
+			Debug.Log($"[Bee] SM<Bee>:: ChangeState: type = {a}");
 			strCurState = a.ToString();
 		});
 		sm.RegisterState(typeof(Default), new Default(sm));

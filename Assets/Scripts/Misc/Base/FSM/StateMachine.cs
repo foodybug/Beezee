@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 #region - sm -
@@ -38,7 +39,22 @@ public class StateMachine
 			return true;
 		}
 	}
-	public void Update()
+    public bool RegisterState<T>(T t) where T : IState
+    {
+        if (dicState.ContainsKey(t.GetType()) == true)
+        {
+            Debug.LogError($"StateMachine:: RegisterState: already added state. t = {t}");
+            return false;
+        }
+        else
+        {
+            dicState.Add(t.GetType(), t);
+            ddicEvent.Add(t.GetType(), new Dictionary<Type, Action<MsgBase>>());
+            t.RegisterEvent(ddicEvent);
+            return true;
+        }
+    }
+    public void Update()
 	{
 		if (_currentState != null)
 		{
@@ -161,28 +177,28 @@ public class Msg_Deselected : MsgBase
 }
 public class Msg_Move : MsgBase
 {
-	//public Player player;
+	//public Bee Bee;
 	public int targetIndex;
 	public Msg_Move(int targetIndex)
 	{
-		//this.player = player;
+		//this.Bee = Bee;
 		this.targetIndex = targetIndex;
 	}
 }
 public class Msg_Win : MsgBase
 {
-	public Player player;
-	public Msg_Win(Player player)
+	public Bee Bee;
+	public Msg_Win(Bee Bee)
     {
-        this.player = player;
+        this.Bee = Bee;
     }
 }
 public class Msg_Lose : MsgBase
 {
-    public Player player;
-    public Msg_Lose(Player player)
+    public Bee Bee;
+    public Msg_Lose(Bee Bee)
     {
-        this.player = player;
+        this.Bee = Bee;
     }
 }
 public class Msg_End : MsgBase
