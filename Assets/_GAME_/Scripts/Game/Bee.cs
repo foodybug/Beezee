@@ -20,6 +20,10 @@ public class Bee : MonoBehaviour
 	public string playerName;
 
 	[SerializeField] List<SabreCard> listCard = new List<SabreCard>();
+	[Header("Idle")]
+	[Range(0f, 5f)]
+	[SerializeField] float timeIdle_Waiting = 1f;
+
 
 	private void Awake()
 	{
@@ -28,11 +32,13 @@ public class Bee : MonoBehaviour
 			strCurState = a.ToString();
 		});
 		sm.RegisterState(new Idle(sm));
-		sm.RegisterState(new Waiting(sm));
-		sm.RegisterState(new Turn_Attack(sm));
-		sm.RegisterState(new Turn_Defence(sm));
-		sm.RegisterState(new End(sm));
-    }
+		sm.RegisterState(new Transport(sm));
+		sm.RegisterState(new Combat(sm));
+		sm.RegisterState(new Death(sm));
+
+		sm.RegisterState(new Following(sm));
+		sm.RegisterState(new Possessed(sm));
+	}
     private void Start()
     {
         
@@ -41,46 +47,24 @@ public class Bee : MonoBehaviour
 	{
 		playerName = name;
 
-        DiscardAll();
-
 		idxHeroPosition = index;
 		Card c = GameBoard.I.Get(index);
         GameMaster.I.PlaceObject(_trnHero, c.transform);
 
         sm.ChangeState(typeof(Idle));
     }
+	public void Update()
+	{
+		sm.Update();
+	}
 	public void MsgProc(MsgBase m)
 	{
 		sm.MsgProc(m);
 
         #region - special case -
-        if (m is Msg_End)
-			sm.ChangeState(typeof(End));
+   //     if (m is Msg_End)
+			//sm.ChangeState(typeof(End));
         #endregion
-    }
-    public void DiscardAll()
-	{
-		foreach(SabreCard node in listCard)
-		{
-			GameMaster.I.cardPile_SabreCard_Discard.Put(node);
-		}
-
-        listCard.Clear();
-    }
-	public bool CheckMovable(int idxOpposistePosition)
-	{
-        bool movable = false;
-        foreach (SabreCard node in listCard)
-        {
-            movable = movable | GameBoard.I.CheckMovable(idxHeroPosition, node.number, idxOpposistePosition);
-        }
-
-		return movable;
-
-        //if (movable == false)
-        //{
-        //    GameMaster.I.MsgProc(new Msg_Lose(this));
-        //}
     }
 	#region - state - 
 	class Idle : SM<Bee>.BaseState, IState
@@ -127,11 +111,11 @@ public class Bee : MonoBehaviour
 		}
 		void OnTurn_Attack(MsgBase m)
 		{
-			aReservedState = () => sm.ChangeState(typeof(Turn_Attack));
+			//aReservedState = () => sm.ChangeState(typeof(Turn_Attack));
 		}
 		void OnWaiting(MsgBase m)
 		{
-            aReservedState = () => sm.ChangeState(typeof(Waiting));
+            //aReservedState = () => sm.ChangeState(typeof(Waiting));
         }
         #region - outer callback -
         void OnPlacingComplete()
@@ -140,35 +124,66 @@ public class Bee : MonoBehaviour
         }
         #endregion
     }
-    class Waiting : SM<Bee>.BaseState, IState
-    {
-        public Waiting(SM<Bee> sm) : base(sm) { }
+	class Transport : SM<Bee>.BaseState, IState
+	{
+        Action aReservedState;
+
+        public Transport(SM<Bee> sm) : base(sm) { }
         #region - interface -
         public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
-        {
-            ddic[GetType()].Add(typeof(Msg_Turn_Attack), OnTurn_Attack);
-        }
-        public void Enter(MsgBase m)
-        {
-			owner._trnTurn.gameObject.SetActive(false);
-        }
-        public void Update()
-        {
+		{
+			//ddic.Add(GetType(), new Dictionary<Type, Action<MsgBase>>());
+			ddic[GetType()].Add(typeof(Msg_Draw), OnDraw);
+			ddic[GetType()].Add(typeof(Msg_Turn_Attack), OnTurn_Attack);
+			ddic[GetType()].Add(typeof(Msg_Waiting), OnWaiting);
+		}
+		public void Enter(MsgBase m)
+		{
+            GameMaster.I.aPlacingComplete += OnPlacingComplete;
 
-        }
-        public void Exit()
-        {
+            Hand.I.Show(false);
+		}
+		public void Update()
+		{
 
+		}
+		public void Exit()
+		{
+            GameMaster.I.aPlacingComplete -= OnPlacingComplete;
+        }
+		#endregion
+		void OnDraw(MsgBase m)
+		{
+			Msg_Draw d = m as Msg_Draw;
+			if (owner.listCard.Count > GameMaster.cntHandSize)
+			{
+				Debug.LogError($"[Bee] Drawing:: OnDraw: size over");
+				GameMaster.I.cardPile_SabreCard_Discard.Put(d.sc);
+				return;
+			}
+
+			GameMaster.I.PlaceObject(d.sc.transform, owner.trnHand, GameMaster.I.lerpSpeed);
+			owner.listCard.Add(d.sc);
+			//d.sc.OwnedByPlayer(owner);
+		}
+		void OnTurn_Attack(MsgBase m)
+		{
+			//aReservedState = () => sm.ChangeState(typeof(Turn_Attack));
+		}
+		void OnWaiting(MsgBase m)
+		{
+            //aReservedState = () => sm.ChangeState(typeof(Waiting));
+        }
+        #region - outer callback -
+        void OnPlacingComplete()
+        {
+			aReservedState?.Invoke();
         }
         #endregion
-        void OnTurn_Attack(MsgBase m)
-        {
-            sm.ChangeState(typeof(Turn_Attack));
-        }
     }
-    class Turn_Attack : SM<Bee>.BaseState, IState
+	class Combat : SM<Bee>.BaseState, IState
 	{
-		public Turn_Attack(SM<Bee> sm) : base(sm) { }
+		public Combat(SM<Bee> sm) : base(sm) { }
 		#region - interface -
 		public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
 		{
@@ -233,12 +248,12 @@ public class Bee : MonoBehaviour
         }
         void OnWaiting(MsgBase m)
         {
-            sm.ChangeState(typeof(Waiting));
+            //sm.ChangeState(typeof(Waiting));
         }
     }
-    class Turn_Defence : SM<Bee>.BaseState, IState
+    class Death : SM<Bee>.BaseState, IState
 	{
-		public Turn_Defence(SM<Bee> sm) : base(sm) { }
+		public Death(SM<Bee> sm) : base(sm) { }
 		#region - interface -
 		public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
 		{
@@ -278,31 +293,101 @@ public class Bee : MonoBehaviour
 
 		}
 	}
-    class End : SM<Bee>.BaseState, IState
-    {
-        public End(SM<Bee> sm) : base(sm) { }
-        #region - interface -
-        public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
-        {
-            ddic[GetType()].Add(typeof(Msg_End), OnEnd);
-        }
-        public void Enter(MsgBase m)
-        {
+	class Following : SM<Bee>.BaseState, IState
+	{
+		public Following(SM<Bee> sm) : base(sm) { }
+		#region - interface -
+		public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
+		{
+			ddic[GetType()].Add(typeof(Msg_Turn_Attack), OnTurn_Attack);
+		}
+		public void Enter(MsgBase m)
+		{
+			owner._trnTurn.gameObject.SetActive(false);
+		}
+		public void Update()
+		{
 
-        }
-        public void Update()
-        {
+		}
+		public void Exit()
+		{
 
-        }
-        public void Exit()
-        {
+		}
+		#endregion
+		void OnTurn_Attack(MsgBase m)
+		{
+			//sm.ChangeState(typeof(Turn_Attack));
+		}
+	}
+	class Possessed : SM<Bee>.BaseState, IState
+	{
+		public Possessed(SM<Bee> sm) : base(sm) { }
+		#region - interface -
+		public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
+		{
+			//ddic.Add(GetType(), new Dictionary<Type, Action<MsgBase>>());
+			ddic[GetType()].Add(typeof(Msg_CardClicked), OnCardClicked);
+			ddic[GetType()].Add(typeof(Msg_Deselected), OnDeselected);
+			ddic[GetType()].Add(typeof(Msg_Move), OnMove);
+			ddic[GetType()].Add(typeof(Msg_Waiting), OnWaiting);
+		}
+		public void Enter(MsgBase m)
+		{
+			Hand.I.Show(true);
+			Hand.I.Set(owner.listCard);
 
-        }
-        #endregion
-        void OnEnd(MsgBase m)//드로잉 카드에 따라 리프레시
-        {
+			owner._trnTurn.gameObject.SetActive(true);
+		}
+		public void Update()
+		{
 
-        }
-    }
-    #endregion
+		}
+		public void Exit()
+		{
+			owner._trnTurn.gameObject.SetActive(false);
+		}
+		#endregion
+		void OnCardClicked(MsgBase m)
+		{
+			Msg_CardClicked cc = m as Msg_CardClicked;
+			GameBoard.I.HighLight(owner.idxHeroPosition, cc.sc.number, GameMaster.I.curOppositePlayer.idxHeroPosition, true);
+			Hand.I.CardClicked(cc.sc, true);
+		}
+		void OnDeselected(MsgBase m)
+		{
+			GameBoard.I.Clear();
+			Hand.I.Deselect();
+		}
+		void OnMove(MsgBase m)
+		{
+			Msg_Move mm = m as Msg_Move;
+			owner.idxHeroPosition = mm.targetIndex;
+
+			Card c = GameBoard.I.Get(mm.targetIndex);
+			GameMaster.I.PlaceObject(owner.trnHero, c.transform);
+
+			GameBoard.I.Clear();
+			Hand.I.DiscardUsedCard(owner.listCard);
+			foreach (SabreCard node in owner.listCard)
+			{
+				GameMaster.I.PlaceObject(node.transform, owner.trnHand, GameMaster.I.lerpSpeed);
+			}
+			for (int i = 0; i < GameMaster.cntHandSize - owner.listCard.Count; ++i)
+			{
+				GameMaster.I.cardPile_SabreCard.Draw(out Card d);
+				if (d != null)
+				{
+					SabreCard sc = d as SabreCard;
+					owner.listCard.Add(sc);
+					//sc.OwnedByPlayer(owner);
+					GameMaster.I.PlaceObject(d.transform, owner.trnHand, GameMaster.I.lerpSpeed);
+				}
+			}
+		}
+		void OnWaiting(MsgBase m)
+		{
+			//sm.ChangeState(typeof(Waiting));
+		}
+	}
+	#endregion
 }

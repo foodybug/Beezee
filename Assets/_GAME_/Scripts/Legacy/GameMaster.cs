@@ -260,22 +260,22 @@ public class GameMaster : MonoBehaviour
             }
             else
             {
-                if(owner.curOppositePlayer.CheckMovable(owner.curActionPlayer.idxHeroPosition) == true)
-                {
-                    Bee temp = owner.curActionPlayer;
-                    owner.curActionPlayer = owner.curOppositePlayer;
-                    owner.curOppositePlayer = temp;
+                //if(owner.curOppositePlayer.CheckMovable(owner.curActionPlayer.idxHeroPosition) == true)
+                //{
+                //    Bee temp = owner.curActionPlayer;
+                //    owner.curActionPlayer = owner.curOppositePlayer;
+                //    owner.curOppositePlayer = temp;
 
-                    owner.curActionPlayer.MsgProc(new Msg_Turn_Attack());
-                    owner.curOppositePlayer.MsgProc(new Msg_Waiting());
+                //    owner.curActionPlayer.MsgProc(new Msg_Turn_Attack());
+                //    owner.curOppositePlayer.MsgProc(new Msg_Waiting());
 
-                    sm.ChangeState(typeof(Proc_WaitingInput_PlayerAction));
-                }
-                else
-                {
-                    sm.ChangeState(typeof(Proc_Result));
-                    sm.MsgProc(new Msg_Win(owner.curActionPlayer));
-                }
+                //    sm.ChangeState(typeof(Proc_WaitingInput_PlayerAction));
+                //}
+                //else
+                //{
+                //    sm.ChangeState(typeof(Proc_Result));
+                //    sm.MsgProc(new Msg_Win(owner.curActionPlayer));
+                //}
             }
         }
         public void Update()
