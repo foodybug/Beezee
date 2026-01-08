@@ -6,7 +6,9 @@ using System.Reflection;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.TestTools;
 using static UnityEngine.UI.GridLayoutGroup;
+using Random = UnityEngine.Random;
 
 public class Bee : MonoBehaviour
 {
@@ -23,6 +25,8 @@ public class Bee : MonoBehaviour
 	[Header("Idle")]
 	[Range(0f, 5f)]
 	[SerializeField] float timeIdle_Waiting = 1f;
+	[SerializeField] float rangeIdle_Roaming = 10f;
+	[SerializeField] float speedIdle_Roaming = 2f;
 
 
 	private void Awake()
@@ -75,16 +79,11 @@ public class Bee : MonoBehaviour
         #region - interface -
         public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
 		{
-			//ddic.Add(GetType(), new Dictionary<Type, Action<MsgBase>>());
-			ddic[GetType()].Add(typeof(Msg_Draw), OnDraw);
-			ddic[GetType()].Add(typeof(Msg_Turn_Attack), OnTurn_Attack);
-			ddic[GetType()].Add(typeof(Msg_Waiting), OnWaiting);
+
 		}
 		public void Enter(MsgBase m)
 		{
-            GameMaster.I.aPlacingComplete += OnPlacingComplete;
-
-            Hand.I.Show(false);
+			owner.StartCoroutine(Roaming_CR());
 		}
 		public void Update()
 		{
@@ -95,28 +94,37 @@ public class Bee : MonoBehaviour
             GameMaster.I.aPlacingComplete -= OnPlacingComplete;
         }
 		#endregion
-		void OnDraw(MsgBase m)
+		IEnumerator Roaming_CR()
 		{
-			Msg_Draw d = m as Msg_Draw;
-			if (owner.listCard.Count > GameMaster.cntHandSize)
+			Transform transform = owner.transform;
+			while(true)
 			{
-				Debug.LogError($"[Bee] Drawing:: OnDraw: size over");
-				GameMaster.I.cardPile_SabreCard_Discard.Put(d.sc);
-				return;
-			}
+				// 1. 목표 지점 결정 (무작위)
+				Vector3 targetPos = transform.position + Random.insideUnitSphere * owner.rangeIdle_Roaming;
+				targetPos.y = 0f;
 
-			GameMaster.I.PlaceObject(d.sc.transform, owner.trnHand, GameMaster.I.lerpSpeed);
-			owner.listCard.Add(d.sc);
-			//d.sc.OwnedByPlayer(owner);
+                // 2. 이동 (Moving 상태)
+                Debug.Log("벌이 이동 중...");
+                while (Vector3.Distance(transform.position, targetPos) > 0.1f)
+                {
+                    // 부드럽게 이동
+                    transform.position = Vector3.MoveTowards(transform.position, targetPos, owner.speedIdle_Roaming * Time.deltaTime);
+
+                    // 이동 방향 바라보기 (부드러운 회전)
+                    Vector3 direction = targetPos - transform.position;
+                    if (direction != Vector3.zero)
+                    {
+                        transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), 0.1f);
+                    }
+
+                    yield return null; // 다음 프레임까지 대기
+                }
+
+                // 3. 멈춤 및 대기 (Idle 상태)
+                Debug.Log("벌이 멈춤 (IDLE)");
+                yield return new WaitForSeconds(owner.timeIdle_Waiting);
+            }
 		}
-		void OnTurn_Attack(MsgBase m)
-		{
-			//aReservedState = () => sm.ChangeState(typeof(Turn_Attack));
-		}
-		void OnWaiting(MsgBase m)
-		{
-            //aReservedState = () => sm.ChangeState(typeof(Waiting));
-        }
         #region - outer callback -
         void OnPlacingComplete()
         {
@@ -158,7 +166,7 @@ public class Bee : MonoBehaviour
 			if (owner.listCard.Count > GameMaster.cntHandSize)
 			{
 				Debug.LogError($"[Bee] Drawing:: OnDraw: size over");
-				GameMaster.I.cardPile_SabreCard_Discard.Put(d.sc);
+
 				return;
 			}
 
@@ -212,7 +220,7 @@ public class Bee : MonoBehaviour
         void OnCardClicked(MsgBase m)
 		{
 			Msg_CardClicked cc = m as Msg_CardClicked;
-			GameBoard.I.HighLight(owner.idxHeroPosition, cc.sc.number, GameMaster.I.curOppositePlayer.idxHeroPosition, true);
+
             Hand.I.CardClicked(cc.sc, true);
         }
 		void OnDeselected(MsgBase m)
@@ -222,29 +230,7 @@ public class Bee : MonoBehaviour
         }
 		void OnMove(MsgBase m)
 		{
-            Msg_Move mm = m as Msg_Move;
-			owner.idxHeroPosition = mm.targetIndex;
 
-            Card c = GameBoard.I.Get(mm.targetIndex);
-            GameMaster.I.PlaceObject(owner.trnHero, c.transform);
-
-			GameBoard.I.Clear();
-			Hand.I.DiscardUsedCard(owner.listCard);
-			foreach(SabreCard node in owner.listCard)
-			{
-                GameMaster.I.PlaceObject(node.transform, owner.trnHand, GameMaster.I.lerpSpeed);
-            }
-			for(int i=0; i < GameMaster.cntHandSize - owner.listCard.Count; ++i)
-			{
-				GameMaster.I.cardPile_SabreCard.Draw(out Card d);
-				if(d != null)
-				{
-                    SabreCard sc = d as SabreCard;
-                    owner.listCard.Add(sc);
-                    //sc.OwnedByPlayer(owner);
-                    GameMaster.I.PlaceObject(d.transform, owner.trnHand, GameMaster.I.lerpSpeed);
-                }
-            }
         }
         void OnWaiting(MsgBase m)
         {
@@ -350,7 +336,6 @@ public class Bee : MonoBehaviour
 		void OnCardClicked(MsgBase m)
 		{
 			Msg_CardClicked cc = m as Msg_CardClicked;
-			GameBoard.I.HighLight(owner.idxHeroPosition, cc.sc.number, GameMaster.I.curOppositePlayer.idxHeroPosition, true);
 			Hand.I.CardClicked(cc.sc, true);
 		}
 		void OnDeselected(MsgBase m)
@@ -374,14 +359,7 @@ public class Bee : MonoBehaviour
 			}
 			for (int i = 0; i < GameMaster.cntHandSize - owner.listCard.Count; ++i)
 			{
-				GameMaster.I.cardPile_SabreCard.Draw(out Card d);
-				if (d != null)
-				{
-					SabreCard sc = d as SabreCard;
-					owner.listCard.Add(sc);
-					//sc.OwnedByPlayer(owner);
-					GameMaster.I.PlaceObject(d.transform, owner.trnHand, GameMaster.I.lerpSpeed);
-				}
+
 			}
 		}
 		void OnWaiting(MsgBase m)

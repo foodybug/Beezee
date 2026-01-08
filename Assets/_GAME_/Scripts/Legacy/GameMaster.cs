@@ -18,17 +18,12 @@ public class GameMaster : MonoBehaviour
 
 	public static GameMaster I { get; private set; }
 
-	public CardSeat cardSeatBoard;
-	public CardPile cardPile_SabreCard;
-	public CardPile cardPile_SabreCard_Discard;
-	public TMP_Text txtResult;
 	public Bee curActionPlayer;
-	public Bee curOppositePlayer;
 
 	SM<GameMaster> sm;
 
-	public Bee playerL;
-	public Bee playerR;
+	public Bee playerBee;
+	public List<Colony> listColony;
 
 	[SerializeField] float drawSpeed = 0.2f;
 	[SerializeField] public float lerpSpeed = 0.1f;
@@ -45,14 +40,8 @@ public class GameMaster : MonoBehaviour
 			Debug.Log($"[GameMaster] SM<GameMaster>:: ChangeState: type = {a}");
 			strCurState = a.ToString();
 		});
-		sm.RegisterState(typeof(Proc_Intro), new Proc_Intro(sm));
-		sm.RegisterState(typeof(Proc_WaitingInput_PlayerAction), new Proc_WaitingInput_PlayerAction(sm));
-		sm.RegisterState(typeof(Proc_ChangeTurn), new Proc_ChangeTurn(sm));
-		sm.RegisterState(typeof(Proc_Result), new Proc_Result(sm));
-		//sm.RegisterState(typeof(Proc_DrawSabreCard_Indoor), new Proc_DrawSabreCard_Indoor(sm));
-		//sm.RegisterState(typeof(Proc_Outdoor), new Proc_Outdoor(sm));
-		//sm.RegisterState(typeof(Proc_WaitingInput_PlacingSabreCard), new Proc_WaitingInput_PlacingSabreCard(sm));
-		//sm.RegisterState(typeof(Proc_PlacingCard), new Proc_PlacingCard(sm));
+		sm.RegisterState(new Proc_Intro(sm));
+		sm.RegisterState(new Proc_Playing(sm));
 	}
 	void Start()
 	{
@@ -76,57 +65,18 @@ public class GameMaster : MonoBehaviour
 		}
 		IEnumerator _SetFirstSabreCard_CR()
 		{
-			owner.cardPile_SabreCard.Shuffle();
-
-			owner.playerL.Init("Left Bee", idxInitHeroPositionL);
-			owner.playerR.Init("Right Bee", idxInitHeroPositionR);
-
-			for(int i = 0; i < cntHandSize; ++i)
-			{
-				if (GameMaster.I.cardPile_SabreCard.Draw(out Card c) == false)
-				{
-					Debug.LogError($"[GameMaster] Proc_Intro:: _SetFirstSabreCard_CR: no card");
-					yield break;
-				}
-
-				SabreCard sc = c as SabreCard;
-				//GameMaster.I.StartCoroutine(owner.Place_CR(sc.transform, owner.playerL.trnHand, owner.lerpSpeed));
-				yield return new WaitForSeconds(owner.drawSpeed);
-
-				owner.playerL.MsgProc(new Msg_Draw(sc));
-
-                if (GameMaster.I.cardPile_SabreCard.Draw(out c) == false)
-                {
-                    Debug.LogError($"[GameMaster] Proc_Intro:: _SetFirstSabreCard_CR: no card");
-                    yield break;
-                }
-
-                sc = c as SabreCard;
-                //GameMaster.I.StartCoroutine(owner.Place_CR(sc.transform, owner.playerR.trnHand, owner.lerpSpeed));
-                yield return new WaitForSeconds(owner.drawSpeed);
-
-                owner.playerR.MsgProc(new Msg_Draw(sc));
-            }
-
-            owner.curActionPlayer = owner.playerL;
-            owner.curOppositePlayer = owner.playerR;
-
-            owner.playerL.MsgProc(new Msg_Turn_Attack());
-			owner.playerR.MsgProc(new Msg_Waiting());
-
-			sm.ChangeState(typeof(Proc_WaitingInput_PlayerAction));
+			sm.ChangeState(typeof(Proc_Playing));
 		}
         public void Update() { }
 		public void Exit() { }
 	}
-	public class Proc_WaitingInput_PlayerAction : SM<GameMaster>.BaseState, IState
+	public class Proc_Playing : SM<GameMaster>.BaseState, IState
 	{
-		public Proc_WaitingInput_PlayerAction(SM<GameMaster> sm) : base(sm) { }
+		public Proc_Playing(SM<GameMaster> sm) : base(sm) { }
 		#region - interface -
 		public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
 		{
-            ddic[GetType()].Add(typeof(Msg_Move), OnMove);
-            ddic[GetType()].Add(typeof(Msg_Lose), OnLose);
+
         }
         public void Enter(MsgBase m)
 		{
@@ -198,115 +148,6 @@ public class GameMaster : MonoBehaviour
 		}
 		#endregion
 		#region - msg -
-		void OnMove(MsgBase m)
-		{
-			Msg_Move mm = m as Msg_Move;
-            owner.curActionPlayer?.MsgProc(m);
-
-            if (mm.targetIndex == owner.curOppositePlayer.idxHeroPosition)
-			{
-                sm.ChangeState(typeof(Proc_Result));
-				sm.MsgProc(new Msg_Win(owner.curActionPlayer));
-            }
-			else
-			{
-                sm.ChangeState(typeof(Proc_ChangeTurn));
-            }
-        }
-        void OnLose(MsgBase m)
-        {
-            Msg_Move mm = m as Msg_Move;
-            owner.curActionPlayer?.MsgProc(m);
-
-            if (mm.targetIndex == owner.curOppositePlayer.idxHeroPosition)
-            {
-                sm.ChangeState(typeof(Proc_Result));
-                sm.MsgProc(new Msg_Win(owner.curActionPlayer));
-            }
-            else
-            {
-                sm.ChangeState(typeof(Proc_ChangeTurn));
-            }
-        }
-        #endregion
-    }
-    public class Proc_ChangeTurn : SM<GameMaster>.BaseState, IState
-    {
-        public Proc_ChangeTurn(SM<GameMaster> sm) : base(sm) { }
-        #region - interface -
-        public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
-        {
-            ddic[GetType()].Add(typeof(Msg_Lose), OnLose);
-        }
-        public void Enter(MsgBase m)
-        {
-            Debug.Log($"[GameMaster] Proc_ChangeTurn:: Enter: ");
-
-            if(owner.cardPile_SabreCard.RemainCount() == 0)
-            {
-                int pL = idxCenter - owner.playerL.idxHeroPosition;
-                int pR = owner.playerR.idxHeroPosition - idxCenter;
-
-                sm.ChangeState(typeof(Proc_Result));
-
-                if (pL > pR)
-                    sm.MsgProc(new Msg_Win(owner.playerL));
-                else if(pL < pR)
-                    sm.MsgProc(new Msg_Win(owner.playerR));
-                else
-                {
-                    Debug.LogWarning($"[GameMaster] Proc_ChangeTurn:: same position?");
-                }    
-            }
-            else
-            {
-                //if(owner.curOppositePlayer.CheckMovable(owner.curActionPlayer.idxHeroPosition) == true)
-                //{
-                //    Bee temp = owner.curActionPlayer;
-                //    owner.curActionPlayer = owner.curOppositePlayer;
-                //    owner.curOppositePlayer = temp;
-
-                //    owner.curActionPlayer.MsgProc(new Msg_Turn_Attack());
-                //    owner.curOppositePlayer.MsgProc(new Msg_Waiting());
-
-                //    sm.ChangeState(typeof(Proc_WaitingInput_PlayerAction));
-                //}
-                //else
-                //{
-                //    sm.ChangeState(typeof(Proc_Result));
-                //    sm.MsgProc(new Msg_Win(owner.curActionPlayer));
-                //}
-            }
-        }
-        public void Update()
-        {
-
-        }
-        public void Exit()
-        {
-
-        }
-        #endregion
-        #region - input -
-        void HandleMouseEnter(GameObject obj)
-        {
-            //Debug.Log($"[GameMaster] Proc_WaitingInput:: HandleMouseEnter: ENTER = {obj.name}");
-        }
-        void HandleMouseExit(GameObject obj)
-        {
-            //Debug.Log($"[GameMaster] Proc_WaitingInput:: HandleMouseExit: EXIT = {obj.name}");
-        }
-        void HandleMouseClick(GameObject obj)
-        {
-
-        }
-        #endregion
-        #region - msg -
-        void OnLose(MsgBase m)
-        {
-            sm.ChangeState(typeof(Proc_Result));
-            sm.MsgProc(new Msg_Win(owner.curOppositePlayer));
-        }
         #endregion
     }
     public class Proc_Result : SM<GameMaster>.BaseState, IState
