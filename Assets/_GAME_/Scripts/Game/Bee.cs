@@ -15,13 +15,13 @@ public class Bee : MonoBehaviour
 	SM<Bee> sm;
 	[SerializeField] string strCurState = "";
 
-	[SerializeField] Transform _trnHand; public Transform trnHand { get { return _trnHand; } }
-	[SerializeField] Transform _trnHero; public Transform trnHero {  get { return _trnHero; } }
-	[SerializeField] Transform _trnTurn;
-	public int idxHeroPosition = -1;
+	//[SerializeField] Transform _trnHand; public Transform trnHand { get { return _trnHand; } }
+	//[SerializeField] Transform _trnHero; public Transform trnHero {  get { return _trnHero; } }
+	//[SerializeField] Transform _trnTurn;
+	//public int idxHeroPosition = -1;
 	public string playerName;
 
-	[SerializeField] List<SabreCard> listCard = new List<SabreCard>();
+	//[SerializeField] List<SabreCard> listCard = new List<SabreCard>();
 	[Header("Idle")]
 	[Range(0f, 5f)]
 	[SerializeField] float timeIdle_Waiting = 1f;
@@ -47,13 +47,13 @@ public class Bee : MonoBehaviour
     {
         
     }
-    public void Init(string name, int index)
+    public void Init(string name)
 	{
 		playerName = name;
 
-		idxHeroPosition = index;
-		Card c = GameBoard.I.Get(index);
-        GameMaster.I.PlaceObject(_trnHero, c.transform);
+		//idxHeroPosition = index;
+		//Card c = GameBoard.I.Get(index);
+  //      GameMaster.I.PlaceObject(_trnHero, c.transform);
 
         sm.ChangeState(typeof(Idle));
     }
@@ -162,17 +162,7 @@ public class Bee : MonoBehaviour
 		#endregion
 		void OnDraw(MsgBase m)
 		{
-			Msg_Draw d = m as Msg_Draw;
-			if (owner.listCard.Count > GameMaster.cntHandSize)
-			{
-				Debug.LogError($"[Bee] Drawing:: OnDraw: size over");
 
-				return;
-			}
-
-			GameMaster.I.PlaceObject(d.sc.transform, owner.trnHand, GameMaster.I.lerpSpeed);
-			owner.listCard.Add(d.sc);
-			//d.sc.OwnedByPlayer(owner);
 		}
 		void OnTurn_Attack(MsgBase m)
 		{
@@ -203,10 +193,7 @@ public class Bee : MonoBehaviour
         }
 		public void Enter(MsgBase m)
 		{
-			Hand.I.Show(true);
-			Hand.I.Set(owner.listCard);
 
-            owner._trnTurn.gameObject.SetActive(true);
 		}
 		public void Update()
 		{
@@ -214,7 +201,7 @@ public class Bee : MonoBehaviour
 		}
 		public void Exit()
 		{
-            owner._trnTurn.gameObject.SetActive(false);
+
         }
         #endregion
         void OnCardClicked(MsgBase m)
@@ -289,7 +276,7 @@ public class Bee : MonoBehaviour
 		}
 		public void Enter(MsgBase m)
 		{
-			owner._trnTurn.gameObject.SetActive(false);
+
 		}
 		public void Update()
 		{
@@ -319,10 +306,7 @@ public class Bee : MonoBehaviour
 		}
 		public void Enter(MsgBase m)
 		{
-			Hand.I.Show(true);
-			Hand.I.Set(owner.listCard);
 
-			owner._trnTurn.gameObject.SetActive(true);
 		}
 		public void Update()
 		{
@@ -330,7 +314,7 @@ public class Bee : MonoBehaviour
 		}
 		public void Exit()
 		{
-			owner._trnTurn.gameObject.SetActive(false);
+
 		}
 		#endregion
 		void OnCardClicked(MsgBase m)
@@ -345,22 +329,7 @@ public class Bee : MonoBehaviour
 		}
 		void OnMove(MsgBase m)
 		{
-			Msg_Move mm = m as Msg_Move;
-			owner.idxHeroPosition = mm.targetIndex;
 
-			Card c = GameBoard.I.Get(mm.targetIndex);
-			GameMaster.I.PlaceObject(owner.trnHero, c.transform);
-
-			GameBoard.I.Clear();
-			Hand.I.DiscardUsedCard(owner.listCard);
-			foreach (SabreCard node in owner.listCard)
-			{
-				GameMaster.I.PlaceObject(node.transform, owner.trnHand, GameMaster.I.lerpSpeed);
-			}
-			for (int i = 0; i < GameMaster.cntHandSize - owner.listCard.Count; ++i)
-			{
-
-			}
 		}
 		void OnWaiting(MsgBase m)
 		{

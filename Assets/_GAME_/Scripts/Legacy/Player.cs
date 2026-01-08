@@ -62,7 +62,7 @@ public class Player : MonoBehaviour
 	{
 		foreach(SabreCard node in listCard)
 		{
-			GameMaster.I.cardPile_SabreCard_Discard.Put(node);
+
 		}
 
         listCard.Clear();
@@ -117,7 +117,6 @@ public class Player : MonoBehaviour
 			if (owner.listCard.Count > GameMaster.cntHandSize)
 			{
 				Debug.LogError($"[Player] Drawing:: OnDraw: size over");
-				GameMaster.I.cardPile_SabreCard_Discard.Put(d.sc);
 				return;
 			}
 
@@ -197,7 +196,6 @@ public class Player : MonoBehaviour
         void OnCardClicked(MsgBase m)
 		{
 			Msg_CardClicked cc = m as Msg_CardClicked;
-			GameBoard.I.HighLight(owner.idxHeroPosition, cc.sc.number, GameMaster.I.curOppositePlayer.idxHeroPosition, true);
             Hand.I.CardClicked(cc.sc, true);
         }
 		void OnDeselected(MsgBase m)
@@ -221,14 +219,7 @@ public class Player : MonoBehaviour
             }
 			for(int i=0; i < GameMaster.cntHandSize - owner.listCard.Count; ++i)
 			{
-				GameMaster.I.cardPile_SabreCard.Draw(out Card d);
-				if(d != null)
-				{
-                    SabreCard sc = d as SabreCard;
-                    owner.listCard.Add(sc);
-                    sc.OwnedByPlayer(owner);
-                    GameMaster.I.PlaceObject(d.transform, owner.trnHand, GameMaster.I.lerpSpeed);
-                }
+
             }
         }
         void OnWaiting(MsgBase m)

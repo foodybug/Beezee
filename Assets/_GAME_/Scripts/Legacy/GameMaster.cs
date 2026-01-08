@@ -18,19 +18,22 @@ public class GameMaster : MonoBehaviour
 
 	public static GameMaster I { get; private set; }
 
+	[SerializeField] TMP_Text txtResult;
+
 	public Bee curActionPlayer;
 
 	SM<GameMaster> sm;
 
 	public Bee playerBee;
 	public List<Colony> listColony;
-
+	public List<Flower> listFlower;
+	[SerializeField] string strCurState = "";
+	
 	[SerializeField] float drawSpeed = 0.2f;
 	[SerializeField] public float lerpSpeed = 0.1f;
 
-	[SerializeField] string strCurState = "";
-
 	public Action aPlacingComplete;
+	[SerializeField] PrefabContainer pc;
 
 	void Awake()
 	{
@@ -61,11 +64,8 @@ public class GameMaster : MonoBehaviour
 		public Proc_Intro(SM<GameMaster> sm) : base(sm) { }
 		public void Enter(MsgBase m)
 		{
-            GameMaster.I.StartCoroutine(_SetFirstSabreCard_CR());
-		}
-		IEnumerator _SetFirstSabreCard_CR()
-		{
-			sm.ChangeState(typeof(Proc_Playing));
+			Bee bee = owner.playerBee = Instantiate<Bee>(owner.pc.bee);
+			bee.Init("Player");
 		}
         public void Update() { }
 		public void Exit() { }
@@ -160,8 +160,7 @@ public class GameMaster : MonoBehaviour
         }
         public void Enter(MsgBase m)
         {
-            owner.playerL.MsgProc(new Msg_End());
-            owner.playerR.MsgProc(new Msg_End());
+
         }
         public void Update()
         {
@@ -223,6 +222,13 @@ public class GameMaster : MonoBehaviour
 		if(cntPlacingCR == 0)
 			aPlacingComplete?.Invoke();
     }
-    #endregion
+	#endregion
+	#region - inner class -
+	[Serializable]
+	class PrefabContainer
+	{
+		public Bee bee;
+	}
+	#endregion
 }
 #endregion

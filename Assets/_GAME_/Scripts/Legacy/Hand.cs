@@ -99,8 +99,7 @@ public class Hand : MonoBehaviour
 
 		foreach(SabreCard node in listTemp)
 		{
-            list.Remove(node);
-            GameMaster.I.PlaceObject(node.transform, GameMaster.I.cardPile_SabreCard_Discard.trnRoot, GameMaster.I.lerpSpeed);
+
         }
     }
 }
