@@ -99,12 +99,9 @@ public class Bee : MonoBehaviour
 			Transform transform = owner.transform;
 			while(true)
 			{
-				// 1. 목표 지점 결정 (무작위)
 				Vector3 targetPos = transform.position + Random.insideUnitSphere * owner.rangeIdle_Roaming;
 				targetPos.y = 0f;
 
-                // 2. 이동 (Moving 상태)
-                Debug.Log("벌이 이동 중...");
                 while (Vector3.Distance(transform.position, targetPos) > 0.1f)
                 {
                     // 부드럽게 이동
@@ -120,8 +117,6 @@ public class Bee : MonoBehaviour
                     yield return null; // 다음 프레임까지 대기
                 }
 
-                // 3. 멈춤 및 대기 (Idle 상태)
-                Debug.Log("벌이 멈춤 (IDLE)");
                 yield return new WaitForSeconds(owner.timeIdle_Waiting);
             }
 		}
