@@ -5,11 +5,13 @@ using UnityEngine;
 
 public class InputControl : MonoBehaviour
 {
-    public static InputControl it { get; private set; }
+    public static InputControl I { get; private set; }
 
     public Action<GameObject> aMouseEnter;
     public Action<GameObject> aMouseExit;
-    public Action<GameObject> aMouseClick;
+    public Action<GameObject> aMouseClickDown;
+    public Action<GameObject> aMouseClickUp;
+    public Action<GameObject, Vector3> aMouseClicking;
 
     GameObject currentHoveredObject;
     Ray ray;
@@ -17,7 +19,7 @@ public class InputControl : MonoBehaviour
 
     private void Awake()
     {
-        it = this;
+        I = this;
     }
     private void Update()
     {
@@ -41,9 +43,17 @@ public class InputControl : MonoBehaviour
 
             if (Input.GetMouseButtonDown(0) == true)
             {
-                HandleMouseClick(currentHoveredObject);
+                HandleMouseClickDown(currentHoveredObject);
             }
-        }
+			if (Input.GetMouseButtonUp(0) == true)
+			{
+				HandleMouseClickUp(currentHoveredObject);
+			}
+			if (Input.GetMouseButton(0) == true)
+			{
+				HandleMouseClicking(hit);
+			}
+		}
         else
         {
             // 마우스가 아무 오브젝트에도 올라가 있지 않은 경우
@@ -54,9 +64,13 @@ public class InputControl : MonoBehaviour
             }
             if (Input.GetMouseButtonDown(0) == true)
             {
-                HandleMouseClick(null);
+                HandleMouseClickDown(null);
             }
-        }
+			if (Input.GetMouseButtonUp(0) == true)
+			{
+				HandleMouseClickUp(null);
+			}
+		}
     }
     void HandleMouseEnter(GameObject obj)
     {
@@ -76,15 +90,37 @@ public class InputControl : MonoBehaviour
         //AdjacentBlock ab = obj.GetComponent<AdjacentBlock>();
         //if (ab != null) ab.MouseExit();
     }
-    void HandleMouseClick(GameObject obj)
+    void HandleMouseClickDown(GameObject obj)
     {
-        Debug.Log($"InputControl:: HandleMouseClick: aMouseClick = {aMouseClick}, obj = {obj}");
+        //Debug.Log($"InputControl:: HandleMouseClickDown: aMouseClickDown = {aMouseClickDown}, obj = {obj}");
 
-        aMouseClick?.Invoke(obj);
+		aMouseClickDown?.Invoke(obj);
 
         //Debug.Log(obj.name + ": Raycast Mouse Exit!");
         //AdjacentBlock ab = obj.GetComponent<AdjacentBlock>();
         //if (ab != null) ab.MouseClick(GameMaster.I.currentSabreCard);
         //GameMaster.I.currentSabreCard = null;
     }
+	void HandleMouseClickUp(GameObject obj)
+	{
+		//Debug.Log($"InputControl:: HandleMouseClickUp: aMouseClickUp = {aMouseClickUp}, obj = {obj}");
+
+		aMouseClickUp?.Invoke(obj);
+
+		//Debug.Log(obj.name + ": Raycast Mouse Exit!");
+		//AdjacentBlock ab = obj.GetComponent<AdjacentBlock>();
+		//if (ab != null) ab.MouseClick(GameMaster.I.currentSabreCard);
+		//GameMaster.I.currentSabreCard = null;
+	}
+	void HandleMouseClicking(RaycastHit hit)
+	{
+		//Debug.Log($"InputControl:: HandleMouseClickUp: aMouseClicking = {aMouseClicking}, obj = {hit.transform.gameObject}");
+
+		aMouseClicking?.Invoke(hit.transform.gameObject, hit.point);
+
+		//Debug.Log(obj.name + ": Raycast Mouse Exit!");
+		//AdjacentBlock ab = obj.GetComponent<AdjacentBlock>();
+		//if (ab != null) ab.MouseClick(GameMaster.I.currentSabreCard);
+		//GameMaster.I.currentSabreCard = null;
+	}
 }

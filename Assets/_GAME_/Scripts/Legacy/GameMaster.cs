@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using TMPro;
+using UnityEditor.Timeline;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UI;
@@ -64,8 +65,14 @@ public class GameMaster : MonoBehaviour
 		public Proc_Intro(SM<GameMaster> sm) : base(sm) { }
 		public void Enter(MsgBase m)
 		{
-			Bee bee = owner.playerBee = Instantiate<Bee>(owner.pc.bee);
-			bee.Init("Player");
+			Bee bee = owner.playerBee = Instantiate(owner.pc.bee);
+			bee.Init("Player", true);
+
+			for(int i=0; i<100; ++i)
+			{
+				bee = Instantiate(owner.pc.bee);
+				bee.Init("Npc");
+			}
 		}
         public void Update() { }
 		public void Exit() { }
@@ -80,15 +87,15 @@ public class GameMaster : MonoBehaviour
         }
         public void Enter(MsgBase m)
 		{
-			if (InputControl.it != null)
+			if (InputControl.I != null)
 			{
-				InputControl.it.aMouseEnter += HandleMouseEnter;
-				InputControl.it.aMouseExit += HandleMouseExit;
-				InputControl.it.aMouseClick += HandleMouseClick;
+				InputControl.I.aMouseEnter += HandleMouseEnter;
+				InputControl.I.aMouseExit += HandleMouseExit;
+				InputControl.I.aMouseClickDown += HandleMouseClick;
 			}
 			else
 			{
-				Debug.LogError($"[GameMaster] Proc_WaitingInput_PlayerAction:: Enter: InputControl.it == null");
+				Debug.LogError($"[GameMaster] Proc_WaitingInput_PlayerAction:: Enter: InputControl.I == null");
 			}
 
 			//Msg_Draw draw = m as Msg_Draw;
@@ -100,15 +107,15 @@ public class GameMaster : MonoBehaviour
 		}
 		public void Exit()
 		{
-			if (InputControl.it != null)
+			if (InputControl.I != null)
 			{
-				InputControl.it.aMouseEnter -= HandleMouseEnter;
-				InputControl.it.aMouseExit -= HandleMouseExit;
-				InputControl.it.aMouseClick -= HandleMouseClick;
+				InputControl.I.aMouseEnter -= HandleMouseEnter;
+				InputControl.I.aMouseExit -= HandleMouseExit;
+				InputControl.I.aMouseClickDown -= HandleMouseClick;
 			}
 			else
 			{
-				Debug.LogError($"[GameMaster] Proc_WaitingInput_PlayerAction:: Exit: InputControl.it == null");
+				Debug.LogError($"[GameMaster] Proc_WaitingInput_PlayerAction:: Exit: InputControl.I == null");
 			}
 		}
 		#endregion

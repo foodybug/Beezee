@@ -20,6 +20,7 @@ public class Bee : MonoBehaviour
 	//[SerializeField] Transform _trnTurn;
 	//public int idxHeroPosition = -1;
 	public string playerName;
+	public bool isPlayer = false;
 
 	//[SerializeField] List<SabreCard> listCard = new List<SabreCard>();
 	[Header("Idle")]
@@ -32,7 +33,7 @@ public class Bee : MonoBehaviour
 	private void Awake()
 	{
 		sm = new SM<Bee>(this, (a) => {
-			Debug.Log($"[Bee] SM<Bee>:: ChangeState: type = {a}");
+			//Debug.Log($"[Bee] SM<Bee>:: ChangeState: type = {a}");
 			strCurState = a.ToString();
 		});
 		sm.RegisterState(new Idle(sm));
@@ -47,7 +48,7 @@ public class Bee : MonoBehaviour
     {
         
     }
-    public void Init(string name)
+    public void Init(string name, bool isPlayer = false)
 	{
 		playerName = name;
 
@@ -55,8 +56,11 @@ public class Bee : MonoBehaviour
 		//Card c = GameBoard.I.Get(index);
   //      GameMaster.I.PlaceObject(_trnHero, c.transform);
 
-        sm.ChangeState(typeof(Idle));
-    }
+		if(isPlayer == true)
+			sm.ChangeState(typeof(Possessed));
+		else
+			sm.ChangeState(typeof(Idle));
+	}
 	public void Update()
 	{
 		sm.Update();
@@ -271,7 +275,7 @@ public class Bee : MonoBehaviour
 		}
 		public void Enter(MsgBase m)
 		{
-
+			
 		}
 		public void Update()
 		{
@@ -286,10 +290,13 @@ public class Bee : MonoBehaviour
 		{
 			//sm.ChangeState(typeof(Turn_Attack));
 		}
+		
 	}
 	class Possessed : SM<Bee>.BaseState, IState
 	{
 		public Possessed(SM<Bee> sm) : base(sm) { }
+		public bool isClicking = false;
+		public Vector3 destPoint;
 		#region - interface -
 		public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
 		{
@@ -301,15 +308,53 @@ public class Bee : MonoBehaviour
 		}
 		public void Enter(MsgBase m)
 		{
+			InputControl.I.aMouseClicking += OnClicking;
+			InputControl.I.aMouseClickUp += OnClickUp;
 
+			CameraFollow cf = Camera.main.GetComponent<CameraFollow>();
+			cf.enabled = true;
+			cf.target = owner.transform;
 		}
 		public void Update()
 		{
+			if (isClicking == false)
+				return;
 
+			Transform transform = owner.transform;
+
+			Vector3 targetPos = destPoint;
+			targetPos.y = 0f;
+
+			if(Vector3.Distance(transform.position, targetPos) > 0.1f)
+			{
+				// 부드럽게 이동
+				transform.position = Vector3.MoveTowards(transform.position, targetPos, owner.speedIdle_Roaming * Time.deltaTime);
+
+				// 이동 방향 바라보기 (부드러운 회전)
+				Vector3 direction = targetPos - transform.position;
+				if (direction != Vector3.zero)
+				{
+					transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), 0.1f);
+				}
+			}
 		}
 		public void Exit()
 		{
+			InputControl.I.aMouseClicking -= OnClicking;
+			InputControl.I.aMouseClickUp -= OnClickUp;
+		}
+		#endregion
+		#region - input -
+		void OnClicking(GameObject obj, Vector3 point)
+		{
+			if (isClicking == false)
+				isClicking = true;
 
+			destPoint = point;
+		}
+		void OnClickUp(GameObject obj)
+		{
+			isClicking = false;
 		}
 		#endregion
 		void OnCardClicked(MsgBase m)
