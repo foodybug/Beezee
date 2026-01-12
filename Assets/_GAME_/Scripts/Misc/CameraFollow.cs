@@ -17,6 +17,8 @@ public class CameraFollow : MonoBehaviour
 
 			// SmoothDamp를 이용해 위치 이동
 			transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref velocity, smoothTime);
+
+			transform.LookAt(target.position);
 		}
 	}
 }

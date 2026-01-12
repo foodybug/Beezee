@@ -2,9 +2,9 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Colony : MonoBehaviour
+public class Environment : MonoBehaviour
 {
-    [SerializeField] int food = 0;
+    [SerializeField] List<Flower> listFlowers = new List<Flower>();
 
     // Start is called before the first frame update
     void Start()

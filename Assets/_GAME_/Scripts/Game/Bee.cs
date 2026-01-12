@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Security.Cryptography;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.AI;
@@ -14,6 +15,8 @@ public class Bee : MonoBehaviour
 {
 	SM<Bee> sm;
 	[SerializeField] string strCurState = "";
+
+	[SerializeField] Colony colony;
 
 	//[SerializeField] Transform _trnHand; public Transform trnHand { get { return _trnHand; } }
 	//[SerializeField] Transform _trnHero; public Transform trnHero {  get { return _trnHero; } }
@@ -28,9 +31,15 @@ public class Bee : MonoBehaviour
 	[SerializeField] float timeIdle_Waiting = 1f;
 	[SerializeField] float rangeIdle_Roaming = 10f;
 	[SerializeField] float speedIdle_Roaming = 2f;
+	[SerializeField] float rangeIdle_DetectingFood = 3f;
+	[SerializeField] float timeIdle_DetectingFood = 3f;
+    //[SerializeField] float timeIdle_ApproachingFood = 2f;
+    //[SerializeField] float timeIdle_EncounterFood = 0.2f;
+    [Header("Transport")]
+    [Range(0f, 5f)]
+    [SerializeField] float timeTransport_ChangeDirection = 1f;
 
-
-	private void Awake()
+    private void Awake()
 	{
 		sm = new SM<Bee>(this, (a) => {
 			//Debug.Log($"[Bee] SM<Bee>:: ChangeState: type = {a}");
@@ -77,7 +86,10 @@ public class Bee : MonoBehaviour
 	#region - state - 
 	class Idle : SM<Bee>.BaseState, IState
 	{
-        Action aReservedState;
+		Coroutine crRoaming;
+		Coroutine crDetectingFood;
+
+		Vector3 targetPos;
 
         public Idle(SM<Bee> sm) : base(sm) { }
         #region - interface -
@@ -87,15 +99,17 @@ public class Bee : MonoBehaviour
 		}
 		public void Enter(MsgBase m)
 		{
-			owner.StartCoroutine(Roaming_CR());
+            crRoaming = owner.StartCoroutine(Roaming_CR());
+            crDetectingFood = owner.StartCoroutine(DetectingFood_CR());
 		}
 		public void Update()
 		{
 
-		}
+        }
 		public void Exit()
 		{
-            GameMaster.I.aPlacingComplete -= OnPlacingComplete;
+			owner.StopCoroutine(crRoaming);
+			owner.StopCoroutine(crDetectingFood);
         }
 		#endregion
 		IEnumerator Roaming_CR()
@@ -103,7 +117,7 @@ public class Bee : MonoBehaviour
 			Transform transform = owner.transform;
 			while(true)
 			{
-				Vector3 targetPos = transform.position + Random.insideUnitSphere * owner.rangeIdle_Roaming;
+				targetPos = transform.position + Random.insideUnitSphere * owner.rangeIdle_Roaming;
 				targetPos.y = 0f;
 
                 while (Vector3.Distance(transform.position, targetPos) > 0.1f)
@@ -121,62 +135,124 @@ public class Bee : MonoBehaviour
                     yield return null; // 다음 프레임까지 대기
                 }
 
-                yield return new WaitForSeconds(owner.timeIdle_Waiting);
+                yield return new WaitForSeconds(owner.timeIdle_Waiting + Random.Range(-0.5f, 0.5f));
             }
 		}
-        #region - outer callback -
-        void OnPlacingComplete()
+        IEnumerator DetectingFood_CR()
         {
-			aReservedState?.Invoke();
+            Transform transform = owner.transform;
+
+			while(true)
+			{
+				yield return new WaitForSeconds(owner.timeIdle_DetectingFood);
+
+                Collider[] c = Physics.OverlapSphere(transform.position, owner.rangeIdle_DetectingFood, LayerMask.GetMask("Flower"));
+				if(c != null && c.Length > 0)
+                {
+					int index = Random.Range(0, c.Length);
+					targetPos = c[index].transform.position;
+                    targetPos.y = 0f;
+
+                    owner.StopCoroutine(crRoaming);
+
+					break;
+                }
+            }
+
+            while (true)
+            {
+                while (Vector3.Distance(transform.position, targetPos) > 0.1f)
+                {
+                    // 부드럽게 이동
+                    transform.position = Vector3.MoveTowards(transform.position, targetPos, owner.speedIdle_Roaming * Time.deltaTime);
+
+                    // 이동 방향 바라보기 (부드러운 회전)
+                    Vector3 direction = targetPos - transform.position;
+                    if (direction != Vector3.zero)
+                    {
+                        transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), 0.1f);
+                    }
+
+                    yield return null; // 다음 프레임까지 대기
+                }
+
+				sm.ChangeState(typeof(Transport));
+				break;
+            }
         }
-        #endregion
     }
 	class Transport : SM<Bee>.BaseState, IState
 	{
-        Action aReservedState;
-
+		Coroutine crTransporting;
         public Transport(SM<Bee> sm) : base(sm) { }
         #region - interface -
         public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
 		{
-			//ddic.Add(GetType(), new Dictionary<Type, Action<MsgBase>>());
-			ddic[GetType()].Add(typeof(Msg_Draw), OnDraw);
-			ddic[GetType()].Add(typeof(Msg_Turn_Attack), OnTurn_Attack);
-			ddic[GetType()].Add(typeof(Msg_Waiting), OnWaiting);
+
 		}
 		public void Enter(MsgBase m)
 		{
-            GameMaster.I.aPlacingComplete += OnPlacingComplete;
-
-            Hand.I.Show(false);
-		}
+            crTransporting = owner.StartCoroutine(Transporting_CR());
+        }
 		public void Update()
 		{
 
 		}
 		public void Exit()
 		{
-            GameMaster.I.aPlacingComplete -= OnPlacingComplete;
+			owner.StopCoroutine(crTransporting);
         }
 		#endregion
-		void OnDraw(MsgBase m)
+		IEnumerator Transporting_CR()
 		{
+			Transform transform = owner.transform;
+			Vector3 targetPos = owner.colony.transform.position;
+			targetPos.y = 0f;
 
+			while (true)
+			{
+				float dist = Vector3.Magnitude(targetPos - transform.position);
+				if (dist < 1f)
+					break;
+
+				targetPos += Vector3.one * dist;// * 0.5f;
+
+				while (Vector3.Distance(transform.position, targetPos) > 0.1f)
+				{
+					// 부드럽게 이동
+					transform.position = Vector3.MoveTowards(transform.position, targetPos, owner.speedIdle_Roaming * Time.deltaTime);
+
+					// 이동 방향 바라보기 (부드러운 회전)
+					Vector3 direction = targetPos - transform.position;
+					if (direction != Vector3.zero)
+					{
+						transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), 0.1f);
+					}
+
+					yield return null; // 다음 프레임까지 대기
+				}
+
+				//yield return new WaitForSeconds(owner.timeTransport_ChangeDirection + Random.Range(-0.5f, 0.5f));
+			}
+
+			targetPos = owner.colony.transform.position;
+			while (Vector3.Distance(transform.position, owner.colony.transform.position) > 0.1f)
+			{
+				// 부드럽게 이동
+				transform.position = Vector3.MoveTowards(transform.position, targetPos, owner.speedIdle_Roaming * Time.deltaTime);
+
+				// 이동 방향 바라보기 (부드러운 회전)
+				Vector3 direction = targetPos - transform.position;
+				if (direction != Vector3.zero)
+				{
+					transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), 0.1f);
+				}
+
+				yield return null;
+			}
+
+			sm.ChangeState(typeof(Idle));
 		}
-		void OnTurn_Attack(MsgBase m)
-		{
-			//aReservedState = () => sm.ChangeState(typeof(Turn_Attack));
-		}
-		void OnWaiting(MsgBase m)
-		{
-            //aReservedState = () => sm.ChangeState(typeof(Waiting));
-        }
-        #region - outer callback -
-        void OnPlacingComplete()
-        {
-			aReservedState?.Invoke();
-        }
-        #endregion
     }
 	class Combat : SM<Bee>.BaseState, IState
 	{
