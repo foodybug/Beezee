@@ -84,7 +84,7 @@ public class Bee : MonoBehaviour
         #endregion
     }
 	#region - state - 
-	class Idle : SM<Bee>.BaseState
+	class Idle : SM<Bee>.BaseState, IState
 	{
 		Coroutine crRoaming;
 		Coroutine crDetectingFood;
@@ -181,8 +181,8 @@ public class Bee : MonoBehaviour
             }
         }
     }
-	class Transport : SM<Bee>.BaseState
-	{
+	class Transport : SM<Bee>.BaseState, IState
+    {
 		Coroutine crTransporting;
         public Transport(SM<Bee> sm) : base(sm) { }
         #region - interface -
@@ -254,7 +254,7 @@ public class Bee : MonoBehaviour
 			sm.ChangeState(typeof(Idle));
 		}
     }
-	class Combat : SM<Bee>.BaseState
+	class Combat : SM<Bee>.BaseState, IState
 	{
 		public Combat(SM<Bee> sm) : base(sm) { }
 		#region - interface -
@@ -299,8 +299,8 @@ public class Bee : MonoBehaviour
             //sm.ChangeState(typeof(Waiting));
         }
     }
-    class Death : SM<Bee>.BaseState
-	{
+    class Death : SM<Bee>.BaseState, IState
+    {
 		public Death(SM<Bee> sm) : base(sm) { }
 		#region - interface -
 		public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
@@ -341,8 +341,8 @@ public class Bee : MonoBehaviour
 
 		}
 	}
-	class Following : SM<Bee>.BaseState
-	{
+	class Following : SM<Bee>.BaseState, IState
+    {
 		public Following(SM<Bee> sm) : base(sm) { }
 		#region - interface -
 		public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
@@ -368,8 +368,8 @@ public class Bee : MonoBehaviour
 		}
 		
 	}
-	class Possessed : SM<Bee>.BaseState
-	{
+	class Possessed : SM<Bee>.BaseState, IState
+    {
 		public Possessed(SM<Bee> sm) : base(sm) { }
 		public bool isClicking = false;
 		public Vector3 destPoint;
