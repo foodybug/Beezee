@@ -84,7 +84,7 @@ public class Bee : MonoBehaviour
         #endregion
     }
 	#region - state - 
-	class Idle : SM<Bee>.BaseState, IState
+	class Idle : SM<Bee>.BaseState
 	{
 		Coroutine crRoaming;
 		Coroutine crDetectingFood;
@@ -181,7 +181,7 @@ public class Bee : MonoBehaviour
             }
         }
     }
-	class Transport : SM<Bee>.BaseState, IState
+	class Transport : SM<Bee>.BaseState
 	{
 		Coroutine crTransporting;
         public Transport(SM<Bee> sm) : base(sm) { }
@@ -254,7 +254,7 @@ public class Bee : MonoBehaviour
 			sm.ChangeState(typeof(Idle));
 		}
     }
-	class Combat : SM<Bee>.BaseState, IState
+	class Combat : SM<Bee>.BaseState
 	{
 		public Combat(SM<Bee> sm) : base(sm) { }
 		#region - interface -
@@ -299,7 +299,7 @@ public class Bee : MonoBehaviour
             //sm.ChangeState(typeof(Waiting));
         }
     }
-    class Death : SM<Bee>.BaseState, IState
+    class Death : SM<Bee>.BaseState
 	{
 		public Death(SM<Bee> sm) : base(sm) { }
 		#region - interface -
@@ -341,7 +341,7 @@ public class Bee : MonoBehaviour
 
 		}
 	}
-	class Following : SM<Bee>.BaseState, IState
+	class Following : SM<Bee>.BaseState
 	{
 		public Following(SM<Bee> sm) : base(sm) { }
 		#region - interface -
@@ -368,7 +368,7 @@ public class Bee : MonoBehaviour
 		}
 		
 	}
-	class Possessed : SM<Bee>.BaseState, IState
+	class Possessed : SM<Bee>.BaseState
 	{
 		public Possessed(SM<Bee> sm) : base(sm) { }
 		public bool isClicking = false;

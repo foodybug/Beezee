@@ -114,7 +114,7 @@ public class SM<T> : StateMachine
 		this.owner = t;
 		this.cbStateChanged = a;
 	}
-	public class BaseState
+	public class BaseState : IState
     {
         public SM<T> sm { get; private set; }
         public T owner { get; private set; }
