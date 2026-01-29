@@ -161,7 +161,7 @@ public class Bee : MonoBehaviour
 
             while (true)
             {
-                while (Vector3.Distance(transform.position, targetPos) > 0.1f)
+                while (Vector3.Distance(transform.position, targetPos) > 0.3f)
                 {
                     // 부드럽게 이동
                     transform.position = Vector3.MoveTowards(transform.position, targetPos, owner.speedIdle_Roaming * Time.deltaTime);
@@ -192,7 +192,7 @@ public class Bee : MonoBehaviour
 		}
 		public void Enter(MsgBase m)
 		{
-            crTransporting = owner.StartCoroutine(Transporting_CR());
+            //crTransporting = owner.StartCoroutine(Transporting_CR());
         }
 		public void Update()
 		{
@@ -387,6 +387,8 @@ public class Bee : MonoBehaviour
 			InputControl.I.aMouseClicking += OnClicking;
 			InputControl.I.aMouseClickUp += OnClickUp;
 
+			owner.name = "Player";
+
 			CameraFollow cf = Camera.main.GetComponent<CameraFollow>();
 			cf.enabled = true;
 			cf.target = owner.transform;
@@ -418,6 +420,8 @@ public class Bee : MonoBehaviour
 		{
 			InputControl.I.aMouseClicking -= OnClicking;
 			InputControl.I.aMouseClickUp -= OnClickUp;
+
+			owner.name = "NPC";
 		}
 		#endregion
 		#region - input -

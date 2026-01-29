@@ -27,7 +27,7 @@ public class GameMaster : MonoBehaviour
 
 	public Bee playerBee;
 	public List<Colony> listColony;
-	public List<Flower> listFlower;
+	public Environment environment;
 	[SerializeField] string strCurState = "";
 	
 	[SerializeField] float drawSpeed = 0.2f;
@@ -67,11 +67,13 @@ public class GameMaster : MonoBehaviour
 		{
 			Bee bee = owner.playerBee = Instantiate(owner.pc.bee);
 			bee.Init("Player", true);
-
+			bee.transform.SetParent(owner.environment.transform);
+			
 			for(int i=0; i<100; ++i)
 			{
 				bee = Instantiate(owner.pc.bee);
 				bee.Init("Npc");
+				bee.transform.SetParent(owner.environment.transform);
 			}
 		}
         public void Update() { }

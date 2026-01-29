@@ -4,17 +4,17 @@ using UnityEngine;
 
 public class Environment : MonoBehaviour
 {
+    [SerializeField] GameObject terrain;
     [SerializeField] List<Flower> listFlowers = new List<Flower>();
-
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
+    [SerializeField] Rect rectSize;
+	private void Awake()
+	{
+		for(int i = 0; i < listFlowers.Count; i++)
+		{
+			Vector3 p = listFlowers[i].transform.position;
+			p.x = Random.Range(-rectSize.width, rectSize.width);
+			p.z = Random.Range(-rectSize.height, rectSize.height);
+			listFlowers[i].transform.position = p;
+		}
+	}
 }

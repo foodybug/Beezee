@@ -4,7 +4,8 @@ using UnityEngine;
 
 public class Flower : MonoBehaviour
 {
-    // Start is called before the first frame update
+    [SerializeField] Transform center;
+
     void Start()
     {
         
