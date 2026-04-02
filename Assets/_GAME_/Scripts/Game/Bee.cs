@@ -33,9 +33,9 @@ public class Bee : MonoBehaviour
 	[SerializeField] float speedIdle_Roaming = 2f;
 	[SerializeField] float rangeIdle_DetectingFood = 3f;
 	[SerializeField] float timeIdle_DetectingFood = 3f;
-    //[SerializeField] float timeIdle_ApproachingFood = 2f;
-    //[SerializeField] float timeIdle_EncounterFood = 0.2f;
-    [Header("Transport")]
+	[SerializeField] Transform lastTarget;
+	//[SerializeField] float timeIdle_EncounterFood = 0.2f;
+	[Header("Transport")]
     [Range(0f, 5f)]
     [SerializeField] float timeTransport_ChangeDirection = 1f;
 

@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class Colony : MonoBehaviour
 {
+    [SerializeField] int id = 0;
     [SerializeField] int food = 0;
 
     // Start is called before the first frame update
