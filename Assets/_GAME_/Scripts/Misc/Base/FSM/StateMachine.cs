@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
@@ -17,7 +17,7 @@ public interface IState
     public void Exit() { }
 }
 
-public class StateMachine
+public class StateMachine : IMsgProc
 {
 	Dictionary<Type, IState> dicState = new Dictionary<Type, IState>();
 	Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddicEvent = new Dictionary<Type, Dictionary<Type, Action<MsgBase>>>();
@@ -54,7 +54,7 @@ public class StateMachine
             return true;
         }
     }
-    public void Update()
+  public void Update()
 	{
 		if (_currentState != null)
 		{
@@ -81,14 +81,14 @@ public class StateMachine
 
 		cbStateChanged?.Invoke(_currentState.GetType());
 	}
-	public void MsgProc(MsgBase msg)
+	void IMsgProc.MsgProc(MsgBase msg)
 	{
-        if (_currentState != null)
-        {
+			if (_currentState != null)
+			{
 			Type s = _currentState.GetType();
 			Type m = msg.GetType();
 
-            if (ddicEvent.ContainsKey(s) == true)
+			if (ddicEvent.ContainsKey(s) == true)
 			{
 				if(ddicEvent[s].ContainsKey(m) == true)
 				{
@@ -131,22 +131,7 @@ public class Msg_BtnRest : MsgBase
 {
 
 }
-public class Msg_CardClicked : MsgBase
-{
-    public SabreCard sc;
-    public Msg_CardClicked(SabreCard sc)
-    {
-        this.sc = sc;
-    }
-}
-public class Msg_Draw : MsgBase
-{
-	public SabreCard sc;
-	public Msg_Draw(SabreCard sc)
-    {
-        this.sc = sc;
-    }
-}
+
 public class Msg_Waiting : MsgBase
 {
 
@@ -205,47 +190,7 @@ public class Msg_End : MsgBase
 {
 
 }
-public class Msg_CardRotated : MsgBase
-{
-	public Card card;
-	public Msg_CardRotated(Card c)
-	{
-		card = c;
-	}
-}
-public class Msg_SetAdjacentBlock : MsgBase
-{
-	public AdjacentBlock block;
-	public Card c;
 
-    public Msg_SetAdjacentBlock(AdjacentBlock block, Card c)
-	{
-		this.block = block;
-		this.c = c;
-	}
-}
-public class Msg_PlaceCard : MsgBase
-{
-	public Card from;
-	public Transform to;
-	public float lerpSpeed = 1f;
-	public Type nextStep;
-	public eSide attachedSide = eSide.NONE;
-	public Vector2Int coord;
-    public Msg_PlaceCard()
-    {
-        coord = new Vector2Int(0, 0);
-    }
-    public Msg_PlaceCard(Vector2Int coord, Card from, Transform to, float lerpSpeed, Type nextStep, eSide attachedSide = eSide.NONE)
-    {
-        this.coord = coord;
-        this.from = from;
-        this.to = to;
-        this.lerpSpeed = lerpSpeed;
-		this.nextStep = nextStep;
-		this.attachedSide = attachedSide;
-    }
-}
 public class MsgBase
 {
 

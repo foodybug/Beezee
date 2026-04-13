@@ -11,151 +11,249 @@ using UnityEngine.TestTools;
 using static UnityEngine.UI.GridLayoutGroup;
 using Random = UnityEngine.Random;
 
-public class Bee : MonoBehaviour
+public class Bee : MonoBehaviour, IMsgProc
 {
-	SM<Bee> sm;
-	[SerializeField] string strCurState = "";
+    SM<Bee> sm;
+    [SerializeField] string strCurState = "";
 
-	[SerializeField] Colony colony;
+    [SerializeField] public Colony colony;
 
-	//[SerializeField] Transform _trnHand; public Transform trnHand { get { return _trnHand; } }
-	//[SerializeField] Transform _trnHero; public Transform trnHero {  get { return _trnHero; } }
-	//[SerializeField] Transform _trnTurn;
-	//public int idxHeroPosition = -1;
-	public string playerName;
-	public bool isPlayer = false;
+    public string playerName;
+    public bool isPlayer = false;
 
-	//[SerializeField] List<SabreCard> listCard = new List<SabreCard>();
-	[Header("Idle")]
-	[Range(0f, 5f)]
-	[SerializeField] float timeIdle_Waiting = 1f;
-	[SerializeField] float rangeIdle_Roaming = 10f;
-	[SerializeField] float speedIdle_Roaming = 2f;
-	[SerializeField] float rangeIdle_DetectingFood = 3f;
-	[SerializeField] float timeIdle_DetectingFood = 3f;
-	[SerializeField] Transform lastTarget;
-	//[SerializeField] float timeIdle_EncounterFood = 0.2f;
-	[Header("Transport")]
+    [Header("Idle")]
+    [Range(0f, 5f)]
+    [SerializeField] float timeIdle_Waiting = 1f;
+    [SerializeField] float rangeIdle_Roaming = 10f;
+    [SerializeField] float speedIdle_Roaming = 2f;
+    [SerializeField] float rangeIdle_DetectingFood = 3f;
+    [SerializeField] float timeIdle_DetectingFood = 3f;
+    //[SerializeField] float timeIdle_ApproachingFood = 2f;
+    //[SerializeField] float timeIdle_EncounterFood = 0.2f;
+    [Header("Gather")]
+    [SerializeField] float gatheringSpeed = 1f;
+    [Header("Transport")]
     [Range(0f, 5f)]
     [SerializeField] float timeTransport_ChangeDirection = 1f;
+    [SerializeField] float irregularityFactor = 0.5f; // Î∂àÍ∑úÏπôÏÑ± Ï†ïÎèÑ
+    [Header("Storing")]
+    [SerializeField] float storingSpeed = 1f;
+
+    [Header("Combat")]
+    [SerializeField] public int attackPower = 10;
+    [SerializeField] float detectionRangeCombat = 5f;
+    [SerializeField] float combatRunSpeed = 4f;
+    [SerializeField] float dashDistance = 1.2f;
+    [SerializeField] float dashSpeed = 15f;
+    [SerializeField] float knockbackDuration = 0.2f;
+    [SerializeField] float knockbackSpeed = 10f;
+
+    public Bee targetBee;
+    public Colony targetColony;
+    public Vector3 knockbackDir;
+
+    [Header("Status")]
+    public int hp = 100;
+    public int maxHp = 100;
+    public int food = 0;
+    public int maxFood = 100;
+
+    public static List<Bee> allBees = new List<Bee>();
 
     private void Awake()
-	{
-		sm = new SM<Bee>(this, (a) => {
-			//Debug.Log($"[Bee] SM<Bee>:: ChangeState: type = {a}");
-			strCurState = a.ToString();
-		});
-		sm.RegisterState(new Idle(sm));
-		sm.RegisterState(new Transport(sm));
-		sm.RegisterState(new Combat(sm));
-		sm.RegisterState(new Death(sm));
+    {
+        if (!allBees.Contains(this)) allBees.Add(this);
 
-		sm.RegisterState(new Following(sm));
-		sm.RegisterState(new Possessed(sm));
-	}
+        sm = new SM<Bee>(this, (a) =>
+        {
+            //Debug.Log($"[Bee] SM<Bee>:: ChangeState: type = {a}");
+            strCurState = a.ToString();
+        });
+        sm.RegisterState(new Idle(sm));
+        sm.RegisterState(new Gather(sm));
+        sm.RegisterState(new Transport(sm));
+        sm.RegisterState(new Storing(sm));
+        sm.RegisterState(new Combat(sm));
+        sm.RegisterState(new Knockback(sm));
+        sm.RegisterState(new Death(sm));
+
+        sm.RegisterState(new Following(sm));
+        sm.RegisterState(new Possessed(sm));
+    }
+
+    private void OnDestroy()
+    {
+        if (allBees.Contains(this)) allBees.Remove(this);
+    }
+
     private void Start()
     {
-        
+        transform.localScale = transform.localScale / 3f;
     }
-    public void Init(string name, bool isPlayer = false)
-	{
-		playerName = name;
+    public void Init(string name, Colony c, bool isPlayer = false)
+    {
+        playerName = name;
+        colony = c;
 
-		//idxHeroPosition = index;
-		//Card c = GameBoard.I.Get(index);
-  //      GameMaster.I.PlaceObject(_trnHero, c.transform);
+        if (colony != null)
+        {
+            Vector3 startPos = colony.transform.position;
+            // ÏãúÏûë ÏúÑÏπòÍ∞Ä ÏôÑÏ†ÑÌûà Í≤πÏπòÏßÄ ÏïäÎèÑÎ°ù ÏïΩÍ∞ÑÏùò Î¨¥ÏûëÏúÑ Î≥ÄÎèô Ï∂îÍ∞Ä
+            startPos += Random.insideUnitSphere * 1.5f;
+            startPos.y = 0f;
+            transform.position = startPos;
+        }
 
-		if(isPlayer == true)
-			sm.ChangeState(typeof(Possessed));
-		else
-			sm.ChangeState(typeof(Idle));
-	}
-	public void Update()
-	{
-		sm.Update();
-	}
-	public void MsgProc(MsgBase m)
-	{
-		sm.MsgProc(m);
+        if (isPlayer == true)
+            sm.ChangeState(typeof(Possessed));
+        else
+            sm.ChangeState(typeof(Idle));
+    }
+    public bool CheckEnemy()
+    {
+        for (int i = 0; i < allBees.Count; i++)
+        {
+            var other = allBees[i];
+            if (other == null) continue;
+            if (other == this || other.hp <= 0 || other.colony == null || this.colony == null || other.colony.flag == this.colony.flag) continue;
+            float dist = Vector3.Distance(transform.position, other.transform.position);
+            if (dist <= detectionRangeCombat)
+            {
+                targetBee = other;
+                targetColony = null;
+                sm.ChangeState(typeof(Combat));
+                return true;
+            }
+        }
+
+        if (this.colony != null)
+        {
+            foreach (var col in Colony.AllColonies)
+            {
+                if (col == null || col.hp <= 0 || col.flag == this.colony.flag) continue;
+                float dist = Vector3.Distance(transform.position, col.transform.position);
+                if (dist <= detectionRangeCombat)
+                {
+                    targetColony = col;
+                    targetBee = null;
+                    sm.ChangeState(typeof(Combat));
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public void Update()
+    {
+        sm.Update();
+    }
+
+    public void MsgProc(MsgBase m)
+    {
+        ((IMsgProc)sm)?.MsgProc(m);
 
         #region - special case -
-   //     if (m is Msg_End)
-			//sm.ChangeState(typeof(End));
+        if (m is Msg_TakeDamage msg)
+        {
+            int damage = msg.damage;
+            if (!string.IsNullOrEmpty(strCurState) && strCurState.Contains("Knockback"))
+            {
+                damage *= 2;
+            }
+
+            hp -= damage;
+            knockbackDir = msg.hitDir;
+            sm.ChangeState(typeof(Knockback));
+        }
         #endregion
     }
-	#region - state - 
-	class Idle : SM<Bee>.BaseState, IState
-	{
-		Coroutine crRoaming;
-		Coroutine crDetectingFood;
+    #region - state - 
+    class Idle : SM<Bee>.BaseState, IState
+    {
+        Coroutine crRoaming;
+        Coroutine crDetectingFood;
+        Coroutine crDetectingEnemy;
 
-		Vector3 targetPos;
+        Vector3 targetPos;
 
         public Idle(SM<Bee> sm) : base(sm) { }
         #region - interface -
         public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
-		{
+        {
 
-		}
-		public void Enter(MsgBase m)
-		{
+        }
+        public void Enter(MsgBase m)
+        {
             crRoaming = owner.StartCoroutine(Roaming_CR());
             crDetectingFood = owner.StartCoroutine(DetectingFood_CR());
-		}
-		public void Update()
-		{
+            crDetectingEnemy = owner.StartCoroutine(DetectingEnemy_CR());
+        }
+        public void Update()
+        {
 
         }
-		public void Exit()
-		{
-			owner.StopCoroutine(crRoaming);
-			owner.StopCoroutine(crDetectingFood);
+        public void Exit()
+        {
+            if (crRoaming != null) owner.StopCoroutine(crRoaming);
+            if (crDetectingFood != null) owner.StopCoroutine(crDetectingFood);
+            if (crDetectingEnemy != null) owner.StopCoroutine(crDetectingEnemy);
         }
-		#endregion
-		IEnumerator Roaming_CR()
-		{
-			Transform transform = owner.transform;
-			while(true)
-			{
-				targetPos = transform.position + Random.insideUnitSphere * owner.rangeIdle_Roaming;
-				targetPos.y = 0f;
+        #endregion
+
+        IEnumerator DetectingEnemy_CR()
+        {
+            while (true)
+            {
+                yield return new WaitForSeconds(0.2f);
+                if (owner.CheckEnemy()) yield break;
+            }
+        }
+        IEnumerator Roaming_CR()
+        {
+            Transform transform = owner.transform;
+            while (true)
+            {
+                targetPos = transform.position + Random.insideUnitSphere * owner.rangeIdle_Roaming;
+                targetPos.y = 0f;
 
                 while (Vector3.Distance(transform.position, targetPos) > 0.1f)
                 {
-                    // ∫ŒµÂ∑¥∞‘ ¿Ãµø
+                    // Î∂ÄÎìúÎüΩÍ≤å Ïù¥Îèô
                     transform.position = Vector3.MoveTowards(transform.position, targetPos, owner.speedIdle_Roaming * Time.deltaTime);
 
-                    // ¿Ãµø πÊ«‚ πŸ∂Û∫∏±‚ (∫ŒµÂ∑ØøÓ »∏¿¸)
+                    // Ïù¥Îèô Î∞©Ìñ• Î∞îÎùºÎ≥¥Í∏∞ (Î∂ÄÎìúÎüΩÍ≤å ÌöåÏ†Ñ)
                     Vector3 direction = targetPos - transform.position;
                     if (direction != Vector3.zero)
                     {
                         transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), 0.1f);
                     }
 
-                    yield return null; // ¥Ÿ¿Ω «¡∑π¿”±Ó¡ˆ ¥Î±‚
+                    yield return null; // Îã§Ïùå ÌîÑÎ†àÏûÑÍπåÏßÄ ÎåÄÍ∏∞
                 }
 
                 yield return new WaitForSeconds(owner.timeIdle_Waiting + Random.Range(-0.5f, 0.5f));
             }
-		}
+        }
         IEnumerator DetectingFood_CR()
         {
             Transform transform = owner.transform;
 
-			while(true)
-			{
-				yield return new WaitForSeconds(owner.timeIdle_DetectingFood);
+            while (true)
+            {
+                yield return new WaitForSeconds(owner.timeIdle_DetectingFood);
 
                 Collider[] c = Physics.OverlapSphere(transform.position, owner.rangeIdle_DetectingFood, LayerMask.GetMask("Flower"));
-				if(c != null && c.Length > 0)
+                if (c != null && c.Length > 0)
                 {
-					int index = Random.Range(0, c.Length);
-					targetPos = c[index].transform.position;
+                    int index = Random.Range(0, c.Length);
+                    targetPos = c[index].transform.position;
                     targetPos.y = 0f;
 
                     owner.StopCoroutine(crRoaming);
 
-					break;
+                    break;
                 }
             }
 
@@ -163,298 +261,609 @@ public class Bee : MonoBehaviour
             {
                 while (Vector3.Distance(transform.position, targetPos) > 0.3f)
                 {
-                    // ∫ŒµÂ∑¥∞‘ ¿Ãµø
+                    // Î∂ÄÎìúÎüΩÍ≤å Ïù¥Îèô
                     transform.position = Vector3.MoveTowards(transform.position, targetPos, owner.speedIdle_Roaming * Time.deltaTime);
 
-                    // ¿Ãµø πÊ«‚ πŸ∂Û∫∏±‚ (∫ŒµÂ∑ØøÓ »∏¿¸)
+                    // Ïù¥Îèô Î∞©Ìñ• Î∞îÎùºÎ≥¥Í∏∞ (Î∂ÄÎìúÎüΩÍ≤å ÌöåÏ†Ñ)
                     Vector3 direction = targetPos - transform.position;
                     if (direction != Vector3.zero)
                     {
                         transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), 0.1f);
                     }
 
-                    yield return null; // ¥Ÿ¿Ω «¡∑π¿”±Ó¡ˆ ¥Î±‚
+                    yield return null; // Îã§Ïùå ÌîÑÎ†àÏûÑÍπåÏßÄ ÎåÄÍ∏∞
                 }
 
-				sm.ChangeState(typeof(Transport));
-				break;
+                sm.ChangeState(typeof(Gather));
+                break;
             }
         }
     }
-	class Transport : SM<Bee>.BaseState, IState
+    class Gather : SM<Bee>.BaseState, IState
     {
-		Coroutine crTransporting;
+        Coroutine crGathering;
+        public Gather(SM<Bee> sm) : base(sm) { }
+        #region - interface -
+        public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
+        {
+
+        }
+        public void Enter(MsgBase m)
+        {
+            crGathering = owner.StartCoroutine(Gathering_CR());
+        }
+        public void Update()
+        {
+
+        }
+        public void Exit()
+        {
+            if (crGathering != null)
+                owner.StopCoroutine(crGathering);
+        }
+        #endregion
+
+        IEnumerator Gathering_CR()
+        {
+            yield return new WaitForSeconds(owner.gatheringSpeed);
+            owner.food = Mathf.Min(owner.food + 1, owner.maxFood);
+            sm.ChangeState(typeof(Transport));
+        }
+    }
+    class Transport : SM<Bee>.BaseState, IState
+    {
+        Coroutine crTransporting;
+        Coroutine crDetectingEnemy;
+
         public Transport(SM<Bee> sm) : base(sm) { }
         #region - interface -
         public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
-		{
+        {
 
-		}
-		public void Enter(MsgBase m)
-		{
-            //crTransporting = owner.StartCoroutine(Transporting_CR());
         }
-		public void Update()
-		{
-
-		}
-		public void Exit()
-		{
-			owner.StopCoroutine(crTransporting);
+        public void Enter(MsgBase m)
+        {
+            crTransporting = owner.StartCoroutine(Transporting_CR());
+            crDetectingEnemy = owner.StartCoroutine(DetectingEnemy_CR());
         }
-		#endregion
-		IEnumerator Transporting_CR()
-		{
-			Transform transform = owner.transform;
-			Vector3 targetPos = owner.colony.transform.position;
-			targetPos.y = 0f;
+        public void Update()
+        {
 
-			while (true)
-			{
-				float dist = Vector3.Magnitude(targetPos - transform.position);
-				if (dist < 1f)
-					break;
+        }
+        public void Exit()
+        {
+            if (crTransporting != null) owner.StopCoroutine(crTransporting);
+            if (crDetectingEnemy != null) owner.StopCoroutine(crDetectingEnemy);
+        }
+        #endregion
 
-				targetPos += Vector3.one * dist;// * 0.5f;
+        IEnumerator DetectingEnemy_CR()
+        {
+            while (true)
+            {
+                yield return new WaitForSeconds(0.2f);
+                if (owner.CheckEnemy()) yield break;
+            }
+        }
+        IEnumerator Transporting_CR()
+        {
+            Transform transform = owner.transform;
 
-				while (Vector3.Distance(transform.position, targetPos) > 0.1f)
-				{
-					// ∫ŒµÂ∑¥∞‘ ¿Ãµø
-					transform.position = Vector3.MoveTowards(transform.position, targetPos, owner.speedIdle_Roaming * Time.deltaTime);
+            while (true)
+            {
+                Vector3 targetPos = owner.colony.transform.position;
+                targetPos.y = 0f;
 
-					// ¿Ãµø πÊ«‚ πŸ∂Û∫∏±‚ (∫ŒµÂ∑ØøÓ »∏¿¸)
-					Vector3 direction = targetPos - transform.position;
-					if (direction != Vector3.zero)
-					{
-						transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), 0.1f);
-					}
+                if (Vector3.Distance(transform.position, targetPos) <= 0.1f)
+                {
+                    break;
+                }
 
-					yield return null; // ¥Ÿ¿Ω «¡∑π¿”±Ó¡ˆ ¥Î±‚
-				}
+                // Î∂ÄÎìúÎüΩÍ≤å Ïù¥Îèô
+                transform.position = Vector3.MoveTowards(transform.position, targetPos, owner.speedIdle_Roaming * Time.deltaTime);
 
-				//yield return new WaitForSeconds(owner.timeTransport_ChangeDirection + Random.Range(-0.5f, 0.5f));
-			}
+                // Ïù¥Îèô Î∞©Ìñ• Î∞îÎùºÎ≥¥Í∏∞ (Î∂ÄÎìúÎüΩÍ≤å ÌöåÏ†Ñ)
+                Vector3 direction = targetPos - transform.position;
+                if (direction != Vector3.zero)
+                {
+                    transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), 0.1f);
+                }
 
-			targetPos = owner.colony.transform.position;
-			while (Vector3.Distance(transform.position, owner.colony.transform.position) > 0.1f)
-			{
-				// ∫ŒµÂ∑¥∞‘ ¿Ãµø
-				transform.position = Vector3.MoveTowards(transform.position, targetPos, owner.speedIdle_Roaming * Time.deltaTime);
+                yield return null; // Îã§Ïùå ÌîÑÎ†àÏûÑÍπåÏßÄ ÎåÄÍ∏∞
+            }
 
-				// ¿Ãµø πÊ«‚ πŸ∂Û∫∏±‚ (∫ŒµÂ∑ØøÓ »∏¿¸)
-				Vector3 direction = targetPos - transform.position;
-				if (direction != Vector3.zero)
-				{
-					transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), 0.1f);
-				}
-
-				yield return null;
-			}
-
-			sm.ChangeState(typeof(Idle));
-		}
+            sm.ChangeState(typeof(Storing));
+        }
     }
-	class Combat : SM<Bee>.BaseState, IState
-	{
-		public Combat(SM<Bee> sm) : base(sm) { }
-		#region - interface -
-		public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
-		{
-			//ddic.Add(GetType(), new Dictionary<Type, Action<MsgBase>>());
-			ddic[GetType()].Add(typeof(Msg_CardClicked), OnCardClicked);
-			ddic[GetType()].Add(typeof(Msg_Deselected), OnDeselected);
-			ddic[GetType()].Add(typeof(Msg_Move), OnMove);
-            ddic[GetType()].Add(typeof(Msg_Waiting), OnWaiting);
+    class Storing : SM<Bee>.BaseState, IState
+    {
+        Coroutine crStoring;
+        public Storing(SM<Bee> sm) : base(sm) { }
+        public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
+        {
+
         }
-		public void Enter(MsgBase m)
-		{
+        public void Enter(MsgBase m)
+        {
+            crStoring = owner.StartCoroutine(Storing_CR());
+        }
+        public void Update()
+        {
+        }
+        public void Exit()
+        {
+            if (crStoring != null)
+                owner.StopCoroutine(crStoring);
+        }
+        IEnumerator Storing_CR()
+        {
+            yield return new WaitForSeconds(owner.storingSpeed);
+            owner.colony.AddFood(owner.food);
+            owner.food = 0;
+            sm.ChangeState(typeof(Idle));
+        }
+    }
+    class Combat : SM<Bee>.BaseState, IState
+    {
+        Coroutine crCombat;
+        public Combat(SM<Bee> sm) : base(sm) { }
+        public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic) { }
+        public void Enter(MsgBase m)
+        {
+            crCombat = owner.StartCoroutine(Combat_CR());
+        }
+        public void Update() { }
+        public void Exit()
+        {
+            if (crCombat != null) owner.StopCoroutine(crCombat);
+        }
 
-		}
-		public void Update()
-		{
+        IEnumerator Combat_CR()
+        {
+            Transform transform = owner.transform;
 
-		}
-		public void Exit()
-		{
+            while ((owner.targetBee != null && owner.targetBee.hp > 0) || (owner.targetColony != null && owner.targetColony.hp > 0))
+            {
+                Vector3 targetPos = owner.targetBee != null ? owner.targetBee.transform.position : owner.targetColony.transform.position;
+                targetPos.y = 0f;
+                float dist = Vector3.Distance(transform.position, targetPos);
+
+                if (dist <= owner.dashDistance)
+                {
+                    // Dash
+                    float dashTime = dist / owner.dashSpeed;
+                    float elapsed = 0f;
+
+                    while (elapsed < dashTime)
+                    {
+                        elapsed += Time.deltaTime;
+                        if ((owner.targetBee == null && owner.targetColony == null) ||
+                            (owner.targetBee != null && owner.targetBee.hp <= 0) ||
+                            (owner.targetColony != null && owner.targetColony.hp <= 0))
+                        {
+                            break;
+                        }
+                        
+                        targetPos = owner.targetBee != null ? owner.targetBee.transform.position : owner.targetColony.transform.position;
+                        targetPos.y = 0f;
+                        transform.position = Vector3.MoveTowards(transform.position, targetPos, owner.dashSpeed * Time.deltaTime);
+
+                        Vector3 dir = (targetPos - transform.position).normalized;
+                        if (dir != Vector3.zero) transform.rotation = Quaternion.LookRotation(dir);
+
+                        if (Vector3.Distance(transform.position, targetPos) < 0.3f)
+                            break;
+
+                        yield return null;
+                    }
+
+                    if (owner.targetBee != null && owner.targetBee.hp > 0)
+                    {
+                        Vector3 hitDir = (owner.targetBee.transform.position - transform.position).normalized;
+                        hitDir.y = 0f;
+                        if (hitDir == Vector3.zero) hitDir = transform.forward;
+
+                        float angle = Vector3.Angle(owner.targetBee.transform.forward, hitDir);
+                        float finalDamageFloat = owner.attackPower;
+                        if (angle < 45f) // Back
+                        {
+                            finalDamageFloat *= 2.5f;
+                        }
+                        else if (angle < 135f) // Side
+                        {
+                            finalDamageFloat *= 1.5f;
+                        }
+
+                        int finalDamage = Mathf.RoundToInt(finalDamageFloat);
+                        IMsgProc targetMsgProc = owner.targetBee as IMsgProc;
+                        targetMsgProc?.MsgProc(new Msg_TakeDamage(finalDamage, hitDir));
+
+                        // Attacker knockback
+                        owner.MsgProc(new Msg_TakeDamage(0, -hitDir));
+                        yield break;
+                    }
+                    else if (owner.targetColony != null && owner.targetColony.hp > 0)
+                    {
+                        Vector3 hitDir = (owner.targetColony.transform.position - transform.position).normalized;
+                        hitDir.y = 0f;
+                        if (hitDir == Vector3.zero) hitDir = transform.forward;
+
+                        int finalDamage = owner.attackPower;
+                        IMsgProc targetMsgProc = owner.targetColony as IMsgProc;
+                        targetMsgProc?.MsgProc(new Msg_TakeDamage(finalDamage, hitDir));
+
+                        // Attacker knockback
+                        owner.MsgProc(new Msg_TakeDamage(0, -hitDir));
+                        yield break;
+                    }
+                }
+                else
+                {
+                    // Approach normally
+                    transform.position = Vector3.MoveTowards(transform.position, targetPos, owner.combatRunSpeed * Time.deltaTime);
+                    Vector3 direction = targetPos - transform.position;
+                    if (direction != Vector3.zero)
+                    {
+                        transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), 0.1f);
+                    }
+                }
+
+                yield return null;
+            }
+
+            if (owner.isPlayer)
+                sm.ChangeState(typeof(Possessed));
+            else
+                sm.ChangeState(typeof(Idle));
+        }
+    }
+
+    class Knockback : SM<Bee>.BaseState, IState
+    {
+        Coroutine crKnockback;
+        public Knockback(SM<Bee> sm) : base(sm) { }
+        public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic) { }
+        public void Enter(MsgBase m)
+        {
+            crKnockback = owner.StartCoroutine(Knockback_CR());
+        }
+        public void Update() { }
+        public void Exit()
+        {
+            if (crKnockback != null) owner.StopCoroutine(crKnockback);
+        }
+
+        IEnumerator Knockback_CR()
+        {
+            float elapsed = 0f;
+            Vector3 dir = owner.knockbackDir.normalized;
+            dir.y = 0f;
+
+            while (elapsed < owner.knockbackDuration)
+            {
+                elapsed += Time.deltaTime;
+                owner.transform.position += dir * (owner.knockbackSpeed * Time.deltaTime);
+                yield return null;
+            }
+
+            if (owner.hp <= 0)
+            {
+                owner.hp = 0;
+                sm.ChangeState(typeof(Death));
+            }
+            else
+            {
+                if (owner.isPlayer)
+                    sm.ChangeState(typeof(Possessed));
+                else
+                    sm.ChangeState(typeof(Combat));
+            }
+        }
+    }
+
+    class Death : SM<Bee>.BaseState, IState
+    {
+        public Death(SM<Bee> sm) : base(sm) { }
+        #region - interface -
+        public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
+        {
+        }
+        public void Enter(MsgBase m)
+        {
+            BeeUI beeUI = owner.GetComponentInChildren<BeeUI>();
+            if (beeUI != null) beeUI.gameObject.SetActive(false);
+
+            Renderer[] renderers = owner.GetComponentsInChildren<Renderer>();
+            foreach (var r in renderers)
+            {
+                if (r is SpriteRenderer sr)
+                {
+                    Color c = sr.color;
+                    c.a = 0.5f;
+                    sr.color = c;
+                }
+                else
+                {
+                    if (r.material.HasProperty("_Color"))
+                    {
+                        Color c = r.material.color;
+                        c.a = 0.5f;
+                        r.material.color = c;
+
+                        // Standard shader transparency setup
+                        r.material.SetFloat("_Mode", 3);
+                        r.material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                        r.material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                        r.material.SetInt("_ZWrite", 0);
+                        r.material.DisableKeyword("_ALPHATEST_ON");
+                        r.material.EnableKeyword("_ALPHABLEND_ON");
+                        r.material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                        r.material.renderQueue = 3000;
+                    }
+                    if (r.material.HasProperty("_BaseColor"))
+                    {
+                        Color c = r.material.GetColor("_BaseColor");
+                        c.a = 0.5f;
+                        r.material.SetColor("_BaseColor", c);
+                    }
+                }
+            }
+        }
+        public void Update()
+        {
+
+        }
+        public void Exit()
+        {
 
         }
         #endregion
-        void OnCardClicked(MsgBase m)
-		{
-			Msg_CardClicked cc = m as Msg_CardClicked;
-
-            Hand.I.CardClicked(cc.sc, true);
-        }
-		void OnDeselected(MsgBase m)
-		{
-            GameBoard.I.Clear();
-            Hand.I.Deselect();
-        }
-		void OnMove(MsgBase m)
-		{
-
-        }
-        void OnWaiting(MsgBase m)
-        {
-            //sm.ChangeState(typeof(Waiting));
-        }
     }
-    class Death : SM<Bee>.BaseState, IState
+    class Following : SM<Bee>.BaseState, IState
     {
-		public Death(SM<Bee> sm) : base(sm) { }
-		#region - interface -
-		public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
-		{
-			//ddic.Add(GetType(), new Dictionary<Type, Action<MsgBase>>());
-			ddic[GetType()].Add(typeof(Msg_CardRotated), OnCardRotated);
-			ddic[GetType()].Add(typeof(Msg_Deselected), OnDeselect);
-			ddic[GetType()].Add(typeof(Msg_SetAdjacentBlock), OnSetAdjacentBlock);
-		}
-		public void Enter(MsgBase m)
-		{
+        public Following(SM<Bee> sm) : base(sm) { }
+        #region - interface -
+        public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
+        {
+            ddic[GetType()].Add(typeof(Msg_Turn_Attack), OnTurn_Attack);
+        }
+        public void Enter(MsgBase m)
+        {
 
-		}
-		public void Update()
-		{
+        }
+        public void Update()
+        {
 
-		}
-		public void Exit()
-		{
+        }
+        public void Exit()
+        {
 
-		}
-		#endregion
-		void OnCardRotated(MsgBase m)//µÂ∑Œ¿◊ ƒ´µÂø° µ˚∂Û ∏Æ«¡∑πΩ√
-		{
-			Msg_CardRotated cr = m as Msg_CardRotated;
-			SabreCard drawingSabreCard = cr.card as SabreCard;
-			//Debug.Log($"SabreCard:: OnCardRotated: drawingSabreCard.direction = {drawingSabreCard.direction} ------");
+        }
+        #endregion
+        void OnTurn_Attack(MsgBase m)
+        {
+            //sm.ChangeState(typeof(Turn_Attack));
+        }
 
-
-			Debug.Log($"------ SabreCard:: OnCardRotated: ");
-		}
-		void OnDeselect(MsgBase m)
-		{
-
-		}
-		void OnSetAdjacentBlock(MsgBase m)
-		{
-
-		}
-	}
-	class Following : SM<Bee>.BaseState, IState
+    }
+    class Possessed : SM<Bee>.BaseState, IState
     {
-		public Following(SM<Bee> sm) : base(sm) { }
-		#region - interface -
-		public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
-		{
-			ddic[GetType()].Add(typeof(Msg_Turn_Attack), OnTurn_Attack);
-		}
-		public void Enter(MsgBase m)
-		{
-			
-		}
-		public void Update()
-		{
+        public Possessed(SM<Bee> sm) : base(sm) { }
+        public bool isClicking = false;
+        public Vector3 destPoint;
+        Coroutine crCombat;
+        #region - interface -
+        public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
+        {
+        }
+        public void Enter(MsgBase m)
+        {
+            InputControl.I.aMouseClicking += OnClicking;
+            InputControl.I.aMouseClickUp += OnClickUp;
 
-		}
-		public void Exit()
-		{
+            owner.name = "Player";
 
-		}
-		#endregion
-		void OnTurn_Attack(MsgBase m)
-		{
-			//sm.ChangeState(typeof(Turn_Attack));
-		}
-		
-	}
-	class Possessed : SM<Bee>.BaseState, IState
+            CameraFollow cf = Camera.main.GetComponent<CameraFollow>();
+            cf.enabled = true;
+            cf.target = owner.transform;
+
+            if ((owner.targetBee != null && owner.targetBee.hp > 0) || (owner.targetColony != null && owner.targetColony.hp > 0))
+            {
+                crCombat = owner.StartCoroutine(PossessedCombat_CR());
+            }
+        }
+        public void Update()
+        {
+            if (isClicking == false)
+                return;
+
+            Transform transform = owner.transform;
+
+            Vector3 targetPos = destPoint;
+            targetPos.y = 0f;
+
+            if (Vector3.Distance(transform.position, targetPos) > 0.1f)
+            {
+                // Î∂ÄÎìúÎüΩÍ≤å Ïù¥Îèô
+                transform.position = Vector3.MoveTowards(transform.position, targetPos, owner.speedIdle_Roaming * Time.deltaTime);
+
+                // Ïù¥Îèô Î∞©Ìñ• Î∞îÎùºÎ≥¥Í∏∞ (Î∂ÄÎìúÎüΩÍ≤å ÌöåÏ†Ñ)
+                Vector3 direction = targetPos - transform.position;
+                if (direction != Vector3.zero)
+                {
+                    transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), 0.1f);
+                }
+            }
+        }
+        public void Exit()
+        {
+            if (crCombat != null) owner.StopCoroutine(crCombat);
+            InputControl.I.aMouseClicking -= OnClicking;
+            InputControl.I.aMouseClickUp -= OnClickUp;
+
+            owner.name = "NPC";
+        }
+        #endregion
+        #region - input -
+        void OnClicking(GameObject obj, Vector3 point)
+        {
+            if (obj != null)
+            {
+                Bee clickedBee = obj.GetComponent<Bee>();
+                if (clickedBee == null) clickedBee = obj.GetComponentInParent<Bee>();
+
+                if (clickedBee != null && clickedBee != owner && clickedBee.hp > 0)
+                {
+                    if (owner.colony != null && clickedBee.colony != null && owner.colony.flag != clickedBee.colony.flag)
+                    {
+                        owner.targetBee = clickedBee;
+                        owner.targetColony = null;
+                        isClicking = false;
+                        if (crCombat != null) owner.StopCoroutine(crCombat);
+                        crCombat = owner.StartCoroutine(PossessedCombat_CR());
+                        return;
+                    }
+                }
+
+                Colony clickedColony = obj.GetComponent<Colony>();
+                if (clickedColony == null) clickedColony = obj.GetComponentInParent<Colony>();
+
+                if (clickedColony != null && clickedColony.hp > 0)
+                {
+                    if (owner.colony != null && owner.colony.flag != clickedColony.flag)
+                    {
+                        owner.targetColony = clickedColony;
+                        owner.targetBee = null;
+                        isClicking = false;
+                        if (crCombat != null) owner.StopCoroutine(crCombat);
+                        crCombat = owner.StartCoroutine(PossessedCombat_CR());
+                        return;
+                    }
+                }
+            }
+
+            if (crCombat != null)
+            {
+                owner.StopCoroutine(crCombat);
+                crCombat = null;
+            }
+            owner.targetBee = null;
+            owner.targetColony = null;
+
+            if (isClicking == false)
+                isClicking = true;
+
+            destPoint = point;
+        }
+
+        IEnumerator PossessedCombat_CR()
+        {
+            Transform transform = owner.transform;
+
+            while ((owner.targetBee != null && owner.targetBee.hp > 0) || (owner.targetColony != null && owner.targetColony.hp > 0))
+            {
+                Vector3 targetPos = owner.targetBee != null ? owner.targetBee.transform.position : owner.targetColony.transform.position;
+                targetPos.y = 0f;
+                float dist = Vector3.Distance(transform.position, targetPos);
+
+                if (dist <= owner.dashDistance)
+                {
+                    // Dash
+                    float dashTime = dist / owner.dashSpeed;
+                    float elapsed = 0f;
+
+                    while (elapsed < dashTime)
+                    {
+                        elapsed += Time.deltaTime;
+                        if (owner.targetBee == null && owner.targetColony == null) break;
+                        targetPos = owner.targetBee != null ? owner.targetBee.transform.position : owner.targetColony.transform.position;
+                        targetPos.y = 0f;
+                        transform.position = Vector3.MoveTowards(transform.position, targetPos, owner.dashSpeed * Time.deltaTime);
+
+                        Vector3 dir = (targetPos - transform.position).normalized;
+                        if (dir != Vector3.zero) transform.rotation = Quaternion.LookRotation(dir);
+
+                        if (Vector3.Distance(transform.position, targetPos) < 0.3f)
+                            break;
+
+                        yield return null;
+                    }
+
+                    if (owner.targetBee != null && owner.targetBee.hp > 0)
+                    {
+                        Vector3 hitDir = (owner.targetBee.transform.position - transform.position).normalized;
+                        hitDir.y = 0f;
+                        if (hitDir == Vector3.zero) hitDir = transform.forward;
+
+                        float angle = Vector3.Angle(owner.targetBee.transform.forward, hitDir);
+                        float finalDamageFloat = owner.attackPower;
+                        if (angle < 45f) // Back
+                        {
+                            finalDamageFloat *= 2.5f;
+                        }
+                        else if (angle < 135f) // Side
+                        {
+                            finalDamageFloat *= 1.5f;
+                        }
+
+                        int finalDamage = Mathf.RoundToInt(finalDamageFloat);
+                        IMsgProc targetMsgProc = owner.targetBee as IMsgProc;
+                        targetMsgProc?.MsgProc(new Msg_TakeDamage(finalDamage, hitDir));
+
+                        // Attacker knockback
+                        owner.MsgProc(new Msg_TakeDamage(0, -hitDir));
+                        yield break;
+                    }
+                    else if (owner.targetColony != null && owner.targetColony.hp > 0)
+                    {
+                        Vector3 hitDir = (owner.targetColony.transform.position - transform.position).normalized;
+                        hitDir.y = 0f;
+                        if (hitDir == Vector3.zero) hitDir = transform.forward;
+
+                        int finalDamage = owner.attackPower;
+                        IMsgProc targetMsgProc = owner.targetColony as IMsgProc;
+                        targetMsgProc?.MsgProc(new Msg_TakeDamage(finalDamage, hitDir));
+
+                        // Attacker knockback
+                        owner.MsgProc(new Msg_TakeDamage(0, -hitDir));
+                        yield break;
+                    }
+                }
+                else
+                {
+                    // Approach normally
+                    transform.position = Vector3.MoveTowards(transform.position, targetPos, owner.combatRunSpeed * Time.deltaTime);
+                    Vector3 direction = targetPos - transform.position;
+                    if (direction != Vector3.zero)
+                    {
+                        transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), 0.1f);
+                    }
+                }
+
+                yield return null;
+            }
+
+            owner.targetBee = null;
+            owner.targetColony = null;
+        }
+
+        void OnClickUp(GameObject obj)
+        {
+            isClicking = false;
+        }
+        #endregion
+    }
+    #endregion
+}
+
+public class Msg_TakeDamage : MsgBase
+{
+    public int damage;
+    public Vector3 hitDir;
+
+    public Msg_TakeDamage(int damage, Vector3 hitDir)
     {
-		public Possessed(SM<Bee> sm) : base(sm) { }
-		public bool isClicking = false;
-		public Vector3 destPoint;
-		#region - interface -
-		public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
-		{
-			//ddic.Add(GetType(), new Dictionary<Type, Action<MsgBase>>());
-			ddic[GetType()].Add(typeof(Msg_CardClicked), OnCardClicked);
-			ddic[GetType()].Add(typeof(Msg_Deselected), OnDeselected);
-			ddic[GetType()].Add(typeof(Msg_Move), OnMove);
-			ddic[GetType()].Add(typeof(Msg_Waiting), OnWaiting);
-		}
-		public void Enter(MsgBase m)
-		{
-			InputControl.I.aMouseClicking += OnClicking;
-			InputControl.I.aMouseClickUp += OnClickUp;
-
-			owner.name = "Player";
-
-			CameraFollow cf = Camera.main.GetComponent<CameraFollow>();
-			cf.enabled = true;
-			cf.target = owner.transform;
-		}
-		public void Update()
-		{
-			if (isClicking == false)
-				return;
-
-			Transform transform = owner.transform;
-
-			Vector3 targetPos = destPoint;
-			targetPos.y = 0f;
-
-			if(Vector3.Distance(transform.position, targetPos) > 0.1f)
-			{
-				// ∫ŒµÂ∑¥∞‘ ¿Ãµø
-				transform.position = Vector3.MoveTowards(transform.position, targetPos, owner.speedIdle_Roaming * Time.deltaTime);
-
-				// ¿Ãµø πÊ«‚ πŸ∂Û∫∏±‚ (∫ŒµÂ∑ØøÓ »∏¿¸)
-				Vector3 direction = targetPos - transform.position;
-				if (direction != Vector3.zero)
-				{
-					transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), 0.1f);
-				}
-			}
-		}
-		public void Exit()
-		{
-			InputControl.I.aMouseClicking -= OnClicking;
-			InputControl.I.aMouseClickUp -= OnClickUp;
-
-			owner.name = "NPC";
-		}
-		#endregion
-		#region - input -
-		void OnClicking(GameObject obj, Vector3 point)
-		{
-			if (isClicking == false)
-				isClicking = true;
-
-			destPoint = point;
-		}
-		void OnClickUp(GameObject obj)
-		{
-			isClicking = false;
-		}
-		#endregion
-		void OnCardClicked(MsgBase m)
-		{
-			Msg_CardClicked cc = m as Msg_CardClicked;
-			Hand.I.CardClicked(cc.sc, true);
-		}
-		void OnDeselected(MsgBase m)
-		{
-			GameBoard.I.Clear();
-			Hand.I.Deselect();
-		}
-		void OnMove(MsgBase m)
-		{
-
-		}
-		void OnWaiting(MsgBase m)
-		{
-			//sm.ChangeState(typeof(Waiting));
-		}
-	}
-	#endregion
+        this.damage = damage;
+        this.hitDir = hitDir;
+    }
 }

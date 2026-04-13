@@ -1,21 +1,19 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class AdjacentBlock : MonoBehaviour
 {
-	Card _originCard;
-    [SerializeField] protected eDirection _direction = eDirection.Up; public eDirection direction { get { return _direction; } }
+    // [SerializeField] protected eDirection _direction = eDirection.Up; public eDirection direction { get { return _direction; } }
     [SerializeField] bool _occupied = false; public bool occupied {  get { return _occupied; } }
 
 	//[SerializeField] Renderer renderer;
-	//[SerializeField] Card centerCard;
 	[SerializeField] Color clEnter;
 	[SerializeField] Color clExit;
 
 	//StateMachine sm;
-    Action<AdjacentBlock, Card> aSelected;
+    Action<AdjacentBlock> aSelected;
 
     private void Awake()
     {
@@ -27,9 +25,8 @@ public class AdjacentBlock : MonoBehaviour
 
         gameObject.SetActive(false);
     }
-    public void Init(Card card, Action<AdjacentBlock, Card> a)
+    public void Init(Action<AdjacentBlock> a)
     {
-        _originCard = card;
         aSelected = a;
     }
 	public void BeginSelect()
@@ -37,14 +34,12 @@ public class AdjacentBlock : MonoBehaviour
         gameObject.SetActive(true);
 		GetComponent<Renderer>().material.color = clEnter;
 	}
-    public void Selected(SabreCard m)
+    public void Selected()
 	{
 		_occupied = true;
 
-		//m.transform.position = transform.position;
-
         if(aSelected != null)
-            aSelected(this, m);
+            aSelected(this);
     }
 	public void EndSelect()
 	{
