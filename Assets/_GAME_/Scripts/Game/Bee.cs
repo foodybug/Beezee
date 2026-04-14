@@ -398,7 +398,9 @@ public class Bee : MonoBehaviour, IMsgProc
         IEnumerator Storing_CR()
         {
             yield return new WaitForSeconds(owner.storingSpeed);
-            owner.colony.AddFood(owner.food);
+            // Send food directly avoiding interface cast issues
+            if (owner.colony != null)
+                owner.colony.MsgProc(new Msg_AddFood(owner.food));
             owner.food = 0;
             sm.ChangeState(typeof(Idle));
         }
@@ -475,8 +477,8 @@ public class Bee : MonoBehaviour, IMsgProc
                         }
 
                         int finalDamage = Mathf.RoundToInt(finalDamageFloat);
-                        IMsgProc targetMsgProc = owner.targetBee as IMsgProc;
-                        targetMsgProc?.MsgProc(new Msg_TakeDamage(finalDamage, hitDir));
+                        if (owner.targetBee != null)
+                            owner.targetBee.MsgProc(new Msg_TakeDamage(finalDamage, hitDir));
 
                         // Attacker knockback
                         owner.MsgProc(new Msg_TakeDamage(0, -hitDir));
@@ -489,8 +491,8 @@ public class Bee : MonoBehaviour, IMsgProc
                         if (hitDir == Vector3.zero) hitDir = transform.forward;
 
                         int finalDamage = owner.attackPower;
-                        IMsgProc targetMsgProc = owner.targetColony as IMsgProc;
-                        targetMsgProc?.MsgProc(new Msg_TakeDamage(finalDamage, hitDir));
+                        if (owner.targetColony != null)
+                            owner.targetColony.MsgProc(new Msg_TakeDamage(finalDamage, hitDir));
 
                         // Attacker knockback
                         owner.MsgProc(new Msg_TakeDamage(0, -hitDir));
@@ -807,8 +809,8 @@ public class Bee : MonoBehaviour, IMsgProc
                         }
 
                         int finalDamage = Mathf.RoundToInt(finalDamageFloat);
-                        IMsgProc targetMsgProc = owner.targetBee as IMsgProc;
-                        targetMsgProc?.MsgProc(new Msg_TakeDamage(finalDamage, hitDir));
+                        if (owner.targetBee != null)
+                            owner.targetBee.MsgProc(new Msg_TakeDamage(finalDamage, hitDir));
 
                         // Attacker knockback
                         owner.MsgProc(new Msg_TakeDamage(0, -hitDir));
@@ -821,8 +823,8 @@ public class Bee : MonoBehaviour, IMsgProc
                         if (hitDir == Vector3.zero) hitDir = transform.forward;
 
                         int finalDamage = owner.attackPower;
-                        IMsgProc targetMsgProc = owner.targetColony as IMsgProc;
-                        targetMsgProc?.MsgProc(new Msg_TakeDamage(finalDamage, hitDir));
+                        if (owner.targetColony != null)
+                            owner.targetColony.MsgProc(new Msg_TakeDamage(finalDamage, hitDir));
 
                         // Attacker knockback
                         owner.MsgProc(new Msg_TakeDamage(0, -hitDir));

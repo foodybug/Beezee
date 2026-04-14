@@ -32,12 +32,6 @@ public class Colony : MonoBehaviour, IMsgProc
         hp = maxHp;
     }
 
-    public void AddFood(int amount)
-    {
-        food += amount;
-        if (food > maxFood) food = maxFood;
-    }
-
     public void MsgProc(MsgBase m)
     {
         if (m is Msg_TakeDamage msg)
@@ -45,5 +39,19 @@ public class Colony : MonoBehaviour, IMsgProc
             hp -= msg.damage;
             if (hp < 0) hp = 0;
         }
+        else if (m is Msg_AddFood foodMsg)
+        {
+            food += foodMsg.amount;
+            if (food > maxFood) food = maxFood;
+        }
+    }
+}
+
+public class Msg_AddFood : MsgBase
+{
+    public int amount;
+    public Msg_AddFood(int amount)
+    {
+        this.amount = amount;
     }
 }
