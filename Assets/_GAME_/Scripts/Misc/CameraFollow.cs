@@ -3,53 +3,58 @@ using UnityEngine;
 public class CameraFollow : MonoBehaviour
 {
     public Transform target;      // 타겟
-    public float smoothTime = 0.3f; // 카메라 이동 부드러움 정도
+    public float smoothTime = 0.15f; // 카메라 이동 부드러움 정도 (반응성 향상)
     public Vector3 offset;        // 카메라 기본 오프셋
-    Vector3 curOffset;        // 카메라 기본 오프셋
+    private Vector3 curOffset;
 
     [Header("Zoom Settings")]
-    public float zoomSensitivity = 5f; // 마우스 휠 줌 민감도
-    public float minZoom = 2f;         // 최소 줌 거리(또는 직교 카메라 사이즈)
-    public float maxZoom = 20f;        // 최대 줌 거리(또는 직교 카메라 사이즈)
-    float curDistance = 10f;
+    public float zoomSensitivity = 15f; // 줌 속도 대폭 상향
+    public float minZoom = 0.5f;        // 줌 인 범위를 늘려 오브젝트를 크게 볼 수 있도록 설정
+    public float maxZoom = 25f;
+    
+    private float targetDistance = 10f;
+    private float curDistance = 10f;
 
-    private Vector3 velocity = Vector3.zero;
+    private Vector3 moveVelocity = Vector3.zero;
+    private float zoomVelocity = 0f;
     private Camera cam;
 
     private void Start()
     {
-        // 동일한 게임 오브젝트에 있는 Camera 컴포넌트 가져오기
         cam = GetComponent<Camera>();
 
-        // 처음 오프셋 거리를 기반으로 카메라 사이즈 초기화 (직교 카메라일 경우)
+        if (offset != Vector3.zero)
+        {
+            targetDistance = offset.magnitude;
+            curDistance = targetDistance;
+            curOffset = offset;
+        }
 
         if (cam != null && cam.orthographic && offset != Vector3.zero)
         {
-            cam.orthographicSize = offset.magnitude;
+            cam.orthographicSize = curDistance;
         }
     }
 
     private void Update()
     {
         float scroll = Input.GetAxis("Mouse ScrollWheel");
+        
+        // 스크롤 입력이 있을 때 목표 거리 갱신
         if (scroll != 0f && offset != Vector3.zero)
         {
-            Vector3 direction = offset.normalized;
-            float distance = offset.magnitude;
+            targetDistance -= scroll * zoomSensitivity;
+            targetDistance = Mathf.Clamp(targetDistance, minZoom, maxZoom);
+        }
 
-            // 휠 방향에 따라 값 조절 (앞으로 굴리면 줌인, 뒤로 굴리면 줌아웃)
-            distance -= scroll * zoomSensitivity;
-            distance = Mathf.Clamp(distance, minZoom, maxZoom);
+        // 스크롤 유무와 상관없이 매 프레임 SmoothDamp를 수행하여 뚝뚝 끊기지 않게 함
+        if (offset != Vector3.zero)
+        {
+            curDistance = Mathf.SmoothDamp(curDistance, targetDistance, ref zoomVelocity, smoothTime);
+            curOffset = offset.normalized * curDistance;
 
-            // 새로운 거리로 오프셋 업데이트
-            offset = direction * distance;
-            curOffset = Vector3.SmoothDamp(curOffset, offset, ref velocity, smoothTime);
-
-            // 직교(Orthographic) 카메라가 있는 경우 Size도 같이 조정
             if (cam != null && cam.orthographic)
             {
-                float v = 0f;
-                curDistance = Mathf.SmoothDamp(curDistance, distance, ref v, smoothTime, 10f);
                 cam.orthographicSize = curDistance;
             }
         }
@@ -59,11 +64,10 @@ public class CameraFollow : MonoBehaviour
     {
         if (target != null)
         {
-            // 목표 위치 계산
             Vector3 targetPosition = target.position + curOffset;
 
-            // SmoothDamp를 이용한 위치 이동
-            transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref velocity, smoothTime);
+            // 이동과 줌의 ref velocity를 분리하여 위치 갱신
+            transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref moveVelocity, smoothTime);
 
             transform.LookAt(target.position);
         }

@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4803327195904796}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Bone030
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -42,7 +42,8 @@ GameObject:
   - component: {fileID: 4549644435828676}
   - component: {fileID: 95333843763016992}
   - component: {fileID: 5726977810485104792}
-  m_Layer: 0
+  - component: {fileID: 1348667353128493834}
+  m_Layer: 7
   m_Name: FantasyBee
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -122,11 +123,34 @@ MonoBehaviour:
   knockbackDuration: 0.2
   knockbackSpeed: 8
   targetBee: {fileID: 0}
+  targetColony: {fileID: 0}
+  targetFlower: {fileID: 0}
   knockbackDir: {x: 0, y: 0, z: 0}
   hp: 100
   maxHp: 100
   food: 0
   maxFood: 10
+--- !u!135 &1348667353128493834
+SphereCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1046869630431942}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Radius: 0.5
+  m_Center: {x: 0, y: 0.5, z: 0}
 --- !u!1 &1123151019833848
 GameObject:
   m_ObjectHideFlags: 0
@@ -136,7 +160,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4001871042164966}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Bone022
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -168,7 +192,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4036020211043170}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Bone024
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -202,7 +226,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4148708905150874}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Bone011(mirrored)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -233,7 +257,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4904305849021964}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Bone019
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -264,7 +288,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4304134894598008}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Bone027
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -295,7 +319,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4352009052622362}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Bone015
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -327,7 +351,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4224851340826148}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Bone021
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -363,7 +387,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4019297026939376}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Bone026
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -395,7 +419,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4832634750637700}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Bone011
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -427,7 +451,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4983713028428976}
   - component: {fileID: 137177222824363494}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Fantasy Bee
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -534,7 +558,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4154134294551940}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Bone013
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -565,7 +589,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4893088070262082}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Bone016
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -597,7 +621,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4748755150860974}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Bone018
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -629,7 +653,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4642787788074294}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Bone029
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -661,7 +685,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4806598413872468}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Bone017
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -693,7 +717,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4843490176913306}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Bone013(mirrored)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -726,7 +750,7 @@ GameObject:
   - component: {fileID: 3697583113373161939}
   - component: {fileID: 5682165049048867334}
   - component: {fileID: 535984175188114040}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: HP_Bg
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -802,7 +826,7 @@ GameObject:
   - component: {fileID: 4732305436388377531}
   - component: {fileID: 2332740921268624634}
   - component: {fileID: 578438376749008259}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Food_Bg
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -878,7 +902,7 @@ GameObject:
   - component: {fileID: 992562003955215812}
   - component: {fileID: 3200392658810243226}
   - component: {fileID: 977789530892087518}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Food_Fill
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -953,7 +977,7 @@ GameObject:
   - component: {fileID: 3354318828335678301}
   - component: {fileID: 982203679164669875}
   - component: {fileID: 1733190697161162550}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: UI_Stats
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1032,7 +1056,7 @@ GameObject:
   - component: {fileID: 5594778684554904804}
   - component: {fileID: 8354192955776187713}
   - component: {fileID: 8249613363724995754}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: HP_Fill
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1107,7 +1131,7 @@ GameObject:
   - component: {fileID: 5043253773060264407}
   - component: {fileID: 8199937085707800597}
   - component: {fileID: 4188303443542097975}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: ColonyIndicator
   m_TagString: Untagged
   m_Icon: {fileID: 0}

@@ -10,7 +10,7 @@ public class GameMaster : MonoBehaviour, IMsgProc
     public List<Colony> listColony;
     public Environment environment;
 
-    [SerializeField] PrefabContainer pc;
+    [SerializeField] public PrefabContainer pc;
 
     void Awake()
     {
@@ -43,7 +43,7 @@ public class GameMaster : MonoBehaviour, IMsgProc
     }
 
     [Serializable]
-    class PrefabContainer
+    public class PrefabContainer
     {
         public Bee bee;
     }

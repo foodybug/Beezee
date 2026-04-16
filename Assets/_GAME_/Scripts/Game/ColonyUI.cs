@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
+[DefaultExecutionOrder(100)]
 public class ColonyUI : MonoBehaviour
 {
     [Header("Target")]

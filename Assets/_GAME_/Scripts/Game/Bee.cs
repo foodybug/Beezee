@@ -19,7 +19,7 @@ public class Bee : MonoBehaviour, IMsgProc
     [SerializeField] public Colony colony;
 
     public string playerName;
-    public bool isPlayer = false;
+    [SerializeField] bool isPlayer = false;
 
     [Header("Idle")]
     [Range(0f, 5f)]
@@ -50,7 +50,9 @@ public class Bee : MonoBehaviour, IMsgProc
 
     public Bee targetBee;
     public Colony targetColony;
+    public Flower targetFlower;
     public Vector3 knockbackDir;
+    public float knockbackMultiplier = 1f; // 넉백 배율 (후방 타격 시 감소)
 
     [Header("Status")]
     public int hp = 100;
@@ -62,6 +64,15 @@ public class Bee : MonoBehaviour, IMsgProc
 
     private void Awake()
     {
+        SphereCollider sc = GetComponent<SphereCollider>();
+        if (sc == null)
+        {
+            sc = gameObject.AddComponent<SphereCollider>();
+            sc.radius = 1f; // Adjust size for easier clicking
+            // Make it a trigger if you don't want physical bumps, but raycast might ignore triggers by default if not set.
+            // Leaving it as a regular collider for typical raycast detection.
+        }
+
         if (!allBees.Contains(this)) allBees.Add(this);
 
         sm = new SM<Bee>(this, (a) =>
@@ -86,9 +97,12 @@ public class Bee : MonoBehaviour, IMsgProc
         if (allBees.Contains(this)) allBees.Remove(this);
     }
 
+    public Vector3 baseScale;
+
     private void Start()
     {
         transform.localScale = transform.localScale / 3f;
+        baseScale = transform.localScale;
     }
     public void Init(string name, Colony c, bool isPlayer = false)
     {
@@ -165,6 +179,7 @@ public class Bee : MonoBehaviour, IMsgProc
 
             hp -= damage;
             knockbackDir = msg.hitDir;
+            knockbackMultiplier = msg.knockbackMultiplier;
             sm.ChangeState(typeof(Knockback));
         }
         #endregion
@@ -248,6 +263,8 @@ public class Bee : MonoBehaviour, IMsgProc
                 if (c != null && c.Length > 0)
                 {
                     int index = Random.Range(0, c.Length);
+                    owner.targetFlower = c[index].GetComponent<Flower>();
+                    if (owner.targetFlower == null) owner.targetFlower = c[index].GetComponentInParent<Flower>();
                     targetPos = c[index].transform.position;
                     targetPos.y = 0f;
 
@@ -306,7 +323,19 @@ public class Bee : MonoBehaviour, IMsgProc
         IEnumerator Gathering_CR()
         {
             yield return new WaitForSeconds(owner.gatheringSpeed);
-            owner.food = Mathf.Min(owner.food + 1, owner.maxFood);
+
+            int gatherAmount = 1;
+            if (owner.targetFlower != null)
+            {
+                int taken = owner.targetFlower.TakeFood(gatherAmount);
+                owner.food = Mathf.Min(owner.food + taken, owner.maxFood);
+            }
+            else
+            {
+                owner.food = Mathf.Min(owner.food + gatherAmount, owner.maxFood);
+            }
+
+            owner.targetFlower = null;
             sm.ChangeState(typeof(Transport));
         }
     }
@@ -445,7 +474,7 @@ public class Bee : MonoBehaviour, IMsgProc
                         {
                             break;
                         }
-                        
+
                         targetPos = owner.targetBee != null ? owner.targetBee.transform.position : owner.targetColony.transform.position;
                         targetPos.y = 0f;
                         transform.position = Vector3.MoveTowards(transform.position, targetPos, owner.dashSpeed * Time.deltaTime);
@@ -480,8 +509,11 @@ public class Bee : MonoBehaviour, IMsgProc
                         if (owner.targetBee != null)
                             owner.targetBee.MsgProc(new Msg_TakeDamage(finalDamage, hitDir));
 
-                        // Attacker knockback
-                        owner.MsgProc(new Msg_TakeDamage(0, -hitDir));
+                        // 후방 타격이 아닐 경우에만 공격자 넉백 (공격자는 적게 밀림)
+                        if (angle >= 45f)
+                        {
+                            owner.MsgProc(new Msg_TakeDamage(0, -hitDir, 0.3f));
+                        }
                         yield break;
                     }
                     else if (owner.targetColony != null && owner.targetColony.hp > 0)
@@ -523,16 +555,25 @@ public class Bee : MonoBehaviour, IMsgProc
     class Knockback : SM<Bee>.BaseState, IState
     {
         Coroutine crKnockback;
+        GameObject goStunEffect;
+        Quaternion originalRotation;
+
         public Knockback(SM<Bee> sm) : base(sm) { }
         public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic) { }
         public void Enter(MsgBase m)
         {
+            originalRotation = owner.transform.localRotation;
             crKnockback = owner.StartCoroutine(Knockback_CR());
         }
         public void Update() { }
         public void Exit()
         {
             if (crKnockback != null) owner.StopCoroutine(crKnockback);
+            if (goStunEffect != null) GameObject.Destroy(goStunEffect);
+            
+            // 상태를 벗어날 때 크기/회전 원상 복구
+            owner.transform.localScale = owner.baseScale;
+            owner.transform.localRotation = originalRotation;
         }
 
         IEnumerator Knockback_CR()
@@ -544,7 +585,11 @@ public class Bee : MonoBehaviour, IMsgProc
             while (elapsed < owner.knockbackDuration)
             {
                 elapsed += Time.deltaTime;
-                owner.transform.position += dir * (owner.knockbackSpeed * Time.deltaTime);
+                // Decelerate over time so a new hit (which resets elapsed) is visibly a new knockback
+                float speedMultiplier = Mathf.Lerp(1f, 0f, elapsed / owner.knockbackDuration);
+
+                // Reduce knockback speed to 1/3 and apply deceleration
+                owner.transform.position += dir * ((owner.knockbackSpeed / 6f) * owner.knockbackMultiplier * speedMultiplier * Time.deltaTime);
                 yield return null;
             }
 
@@ -555,6 +600,46 @@ public class Bee : MonoBehaviour, IMsgProc
             }
             else
             {
+                // 밀려남이 끝난 후 5초간 정지 및 스턴 이펙트
+                float stunElapsed = 0f;
+                float stunDuration = 5f;
+
+                // 스턴 이펙트 ZZZ 텍스트 생성
+                goStunEffect = new GameObject("StunEffect");
+                goStunEffect.transform.SetParent(owner.transform);
+                goStunEffect.transform.localPosition = new Vector3(0, 1.5f, 0);
+                
+                TextMesh tm = goStunEffect.AddComponent<TextMesh>();
+                tm.text = "ZZZ";
+                tm.anchor = TextAnchor.MiddleCenter;
+                tm.characterSize = 0.1f;
+                tm.fontSize = 40;
+                tm.color = Color.yellow;
+                tm.fontStyle = FontStyle.Bold;
+
+                while (stunElapsed < stunDuration)
+                {
+                    stunElapsed += Time.deltaTime;
+
+                    // 1. 크기를 줄였다 늘렸다 반복 (맥박처럼 뜀)
+                    float scaleMultiplier = 1f - 0.2f * Mathf.Abs(Mathf.Sin(stunElapsed * Mathf.PI * 3f));
+                    owner.transform.localScale = owner.baseScale * scaleMultiplier;
+
+                    // 2. 좌우로 부들부들 떨리는 효과 (진동)
+                    float shake = Mathf.Sin(stunElapsed * 40f) * 15f; 
+                    owner.transform.localRotation = originalRotation * Quaternion.Euler(0, shake, 0);
+
+                    // 3. ZZZ 이펙트가 위아래로 둥둥 떠다니며 카메라 쳐다보게 함
+                    if (goStunEffect != null)
+                    {
+                        goStunEffect.transform.localPosition = new Vector3(0, 1.5f + Mathf.Sin(stunElapsed * 5f) * 0.2f, 0);
+                        if (Camera.main != null)
+                            goStunEffect.transform.forward = Camera.main.transform.forward; // 빌보드 효과
+                    }
+
+                    yield return null;
+                }
+
                 if (owner.isPlayer)
                     sm.ChangeState(typeof(Possessed));
                 else
@@ -664,6 +749,7 @@ public class Bee : MonoBehaviour, IMsgProc
             InputControl.I.aMouseClickUp += OnClickUp;
 
             owner.name = "Player";
+            owner.isPlayer = true;
 
             CameraFollow cf = Camera.main.GetComponent<CameraFollow>();
             cf.enabled = true;
@@ -812,8 +898,11 @@ public class Bee : MonoBehaviour, IMsgProc
                         if (owner.targetBee != null)
                             owner.targetBee.MsgProc(new Msg_TakeDamage(finalDamage, hitDir));
 
-                        // Attacker knockback
-                        owner.MsgProc(new Msg_TakeDamage(0, -hitDir));
+                        // 후방 타격이 아닐 경우에만 공격자 넉백 (공격자는 적게 밀림)
+                        if (angle >= 45f)
+                        {
+                            owner.MsgProc(new Msg_TakeDamage(0, -hitDir, 0.3f));
+                        }
                         yield break;
                     }
                     else if (owner.targetColony != null && owner.targetColony.hp > 0)
@@ -862,10 +951,12 @@ public class Msg_TakeDamage : MsgBase
 {
     public int damage;
     public Vector3 hitDir;
+    public float knockbackMultiplier; // 넉백 배율 (1.0 = 기본, 0.3 = 후방타격 등)
 
-    public Msg_TakeDamage(int damage, Vector3 hitDir)
+    public Msg_TakeDamage(int damage, Vector3 hitDir, float knockbackMultiplier = 1f)
     {
         this.damage = damage;
         this.hitDir = hitDir;
+        this.knockbackMultiplier = knockbackMultiplier;
     }
 }
