@@ -8,9 +8,12 @@ public class ColonyUI : MonoBehaviour
     public Colony colony;
 
     [Header("UI Elements")]
-    public Image hpFill;
-    public Image foodFill;
+    public Slider hpSlider;
+    public Slider foodSlider;
     public Image colonyIndicator;
+
+    [Header("Screen Settings")]
+    public Vector3 worldOffset = new Vector3(0, 3f, 0);
 
     private void LateUpdate()
     {
@@ -21,18 +24,21 @@ public class ColonyUI : MonoBehaviour
             transform.forward = Camera.main.transform.forward;
         }
 
+        // 지정된 오프셋으로 위치 적용 (부모인 Colony 기준)
+        transform.localPosition = worldOffset;
+
         if (colony != null)
         {
             // 체력 비율 업데이트
-            if (hpFill != null && colony.maxHp > 0)
+            if (hpSlider != null && colony.maxHp > 0)
             {
-                hpFill.fillAmount = (float)colony.hp / colony.maxHp;
+                hpSlider.value = (float)colony.hp / colony.maxHp;
             }
 
             // 식량 비율 업데이트
-            if (foodFill != null && colony.maxFood > 0)
+            if (foodSlider != null && colony.maxFood > 0)
             {
-                foodFill.fillAmount = (float)colony.food / colony.maxFood;
+                foodSlider.value = (float)colony.food / colony.maxFood;
             }
 
             // 소속 콜로니 색상 업데이트

@@ -8,12 +8,13 @@ public class BeeUI : MonoBehaviour
     public Bee bee;
 
     [Header("UI Elements")]
-    public Image hpFill;
-    public Image foodFill;
+    public Slider hpSlider;
+    public Slider foodSlider;
     public Image colonyIndicator;
+    public Text stateText;
 
     [Header("Screen Settings")]
-    public Vector3 worldOffset = new Vector3(0, 1.5f, 0);
+    public Vector3 worldOffset = new Vector3(0, -0.5f, 0);
 
     private RectTransform rectTransform;
     private Canvas screenCanvas;
@@ -42,18 +43,18 @@ public class BeeUI : MonoBehaviour
 
         if (screenCanvas != null)
         {
-            // 기존 WorldSpace Canvas 컴포넌트 제거
-            Canvas ownCanvas = GetComponent<Canvas>();
-            if (ownCanvas != null)
-                Destroy(ownCanvas);
+            GraphicRaycaster raycaster = GetComponent<GraphicRaycaster>();
+            if (raycaster != null)
+                Destroy(raycaster);
 
             CanvasScaler scaler = GetComponent<CanvasScaler>();
             if (scaler != null)
                 Destroy(scaler);
 
-            GraphicRaycaster raycaster = GetComponent<GraphicRaycaster>();
-            if (raycaster != null)
-                Destroy(raycaster);
+            // 기존 WorldSpace Canvas 컴포넌트 제거 (종속성 때문에 가장 나중에 제거해야 함)
+            Canvas ownCanvas = GetComponent<Canvas>();
+            if (ownCanvas != null)
+                Destroy(ownCanvas);
 
             // 메인 캔버스로 이동
             transform.SetParent(screenCanvas.transform, false);
@@ -62,13 +63,50 @@ public class BeeUI : MonoBehaviour
             if (rectTransform != null)
             {
                 rectTransform.localScale = Vector3.one;
-                rectTransform.sizeDelta = new Vector2(60, 20);
             }
 
             canvasGroup = GetComponent<CanvasGroup>();
             if (canvasGroup == null)
             {
                 canvasGroup = gameObject.AddComponent<CanvasGroup>();
+            }
+
+            if (stateText == null)
+            {
+                GameObject txtObj = new GameObject("StateText");
+                txtObj.transform.SetParent(this.transform, false);
+                stateText = txtObj.AddComponent<Text>();
+                Font f = null;
+                try
+                {
+                    f = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                }
+                catch { }
+
+                if (f == null)
+                {
+                    Text[] allTexts = FindObjectsOfType<Text>(true);
+                    foreach (var t in allTexts)
+                    {
+                        if (t != null && t.font != null) { f = t.font; break; }
+                    }
+                }
+                if (f == null) f = Font.CreateDynamicFontFromOSFont("Arial", 14);
+                stateText.font = f;
+                stateText.fontSize = 14;
+                stateText.alignment = TextAnchor.MiddleCenter;
+                stateText.horizontalOverflow = HorizontalWrapMode.Overflow;
+                stateText.verticalOverflow = VerticalWrapMode.Overflow;
+                
+                RectTransform txtRT = stateText.GetComponent<RectTransform>();
+                // 슬라이더들(4, -4)보다 더 아래 위치
+                txtRT.anchoredPosition = new Vector2(0, -20);
+                txtRT.sizeDelta = new Vector2(100, 20);
+                
+                // 가독성을 위한 검은색 외곽선(Outline) 효과 추가
+                Outline outline = txtObj.AddComponent<Outline>();
+                outline.effectColor = Color.black;
+                outline.effectDistance = new Vector2(1, -1);
             }
 
             isInitialized = true;
@@ -128,15 +166,15 @@ public class BeeUI : MonoBehaviour
         }
 
         // 체력 비율 업데이트
-        if (hpFill != null && bee.maxHp > 0)
+        if (hpSlider != null && bee.maxHp > 0)
         {
-            hpFill.fillAmount = (float)bee.hp / bee.maxHp;
+            hpSlider.value = (float)bee.hp / bee.maxHp;
         }
 
         // 식량 비율 업데이트
-        if (foodFill != null && bee.maxFood > 0)
+        if (foodSlider != null && bee.maxFood > 0)
         {
-            foodFill.fillAmount = (float)bee.food / bee.maxFood;
+            foodSlider.value = (float)bee.food / bee.maxFood;
         }
 
         // 소속 콜로니 색상 업데이트
@@ -148,6 +186,12 @@ public class BeeUI : MonoBehaviour
                 colonyIndicator.color = Color.blue;
             else
                 colonyIndicator.color = Color.white; // 기본값
+        }
+
+        // 현재 상태 텍스트 업데이트
+        if (stateText != null && bee != null)
+        {
+            stateText.text = bee.strCurState;
         }
     }
 }

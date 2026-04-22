@@ -8,13 +8,12 @@ using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.TestTools;
-using static UnityEngine.UI.GridLayoutGroup;
 using Random = UnityEngine.Random;
 
 public class Bee : MonoBehaviour, IMsgProc
 {
     SM<Bee> sm;
-    [SerializeField] string strCurState = "";
+    [SerializeField] public string strCurState = "";
 
     [SerializeField] public Colony colony;
 
@@ -322,17 +321,26 @@ public class Bee : MonoBehaviour, IMsgProc
 
         IEnumerator Gathering_CR()
         {
-            yield return new WaitForSeconds(owner.gatheringSpeed);
+            while (owner.food < owner.maxFood * 0.7f)
+            {
+                yield return new WaitForSeconds(owner.gatheringSpeed);
 
-            int gatherAmount = 1;
-            if (owner.targetFlower != null)
-            {
-                int taken = owner.targetFlower.TakeFood(gatherAmount);
-                owner.food = Mathf.Min(owner.food + taken, owner.maxFood);
-            }
-            else
-            {
-                owner.food = Mathf.Min(owner.food + gatherAmount, owner.maxFood);
+                int gatherAmount = 1;
+                if (owner.targetFlower != null)
+                {
+                    int taken = owner.targetFlower.TakeFood(gatherAmount);
+                    owner.food = Mathf.Min(owner.food + taken, owner.maxFood);
+
+                    // 꽃의 채취할 식량이 고갈된 경우, 즉각 중지하고 보유분만 들고 복귀
+                    if (taken == 0 || owner.targetFlower.food <= 0)
+                    {
+                        break;
+                    }
+                }
+                else
+                {
+                    owner.food = Mathf.Min(owner.food + gatherAmount, owner.maxFood);
+                }
             }
 
             owner.targetFlower = null;
