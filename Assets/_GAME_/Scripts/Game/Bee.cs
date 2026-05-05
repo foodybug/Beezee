@@ -42,7 +42,7 @@ public class Bee : MonoBehaviour, IMsgProc
     [SerializeField] public int attackPower = 10;
     [SerializeField] float detectionRangeCombat = 5f;
     [SerializeField] float combatRunSpeed = 4f;
-    [SerializeField] float dashDistance = 1.2f;
+    [SerializeField] float dashDistance = 0.25f; // 대시 거리를 줄여서 근접에서 타격하도록 변경
     [SerializeField] float dashSpeed = 15f;
     [SerializeField] float knockbackDuration = 0.2f;
     [SerializeField] float knockbackSpeed = 10f;
@@ -77,7 +77,7 @@ public class Bee : MonoBehaviour, IMsgProc
         sm = new SM<Bee>(this, (a) =>
         {
             //Debug.Log($"[Bee] SM<Bee>:: ChangeState: type = {a}");
-            strCurState = a.ToString();
+            strCurState = a.ToString().Replace("Bee+", "");
         });
         sm.RegisterState(new Idle(sm));
         sm.RegisterState(new Gather(sm));
@@ -102,6 +102,31 @@ public class Bee : MonoBehaviour, IMsgProc
     {
         transform.localScale = transform.localScale / 3f;
         baseScale = transform.localScale;
+
+        Rigidbody rb = GetComponent<Rigidbody>();
+        if (rb == null)
+        {
+            rb = gameObject.AddComponent<Rigidbody>();
+            rb.isKinematic = true;
+        }
+
+        // 벌의 정면을 나타내는 삼각형(LineRenderer) 지시선 추가
+        LineRenderer lr = GetComponent<LineRenderer>();
+        if (lr == null) lr = gameObject.AddComponent<LineRenderer>();
+        lr.startWidth = 0.26f; // 삼각형의 밑변 (기존 0.4에서 2/3 크기)
+        lr.endWidth = 0.0f;   // 뾰족한 끝
+        lr.material = new Material(Shader.Find("Sprites/Default"));
+        
+        Color colColor = Color.white;
+        if (colony != null)
+            colColor = colony.flag == eColony.Red ? Color.red : (colony.flag == eColony.Blue ? Color.blue : Color.white);
+            
+        lr.startColor = new Color(colColor.r, colColor.g, colColor.b, 0.8f);
+        lr.endColor = new Color(colColor.r, colColor.g, colColor.b, 0.8f);
+        lr.positionCount = 2;
+        lr.useWorldSpace = false; // 로컬 좌표계 사용 (벌과 함께 회전/이동)
+        lr.SetPosition(0, new Vector3(0, 0.5f, 0.75f)); // 벌 앞쪽부터 시작
+        lr.SetPosition(1, new Vector3(0, 0.5f, 1.08f)); // 정면 꼭짓점 (길이도 2/3 크기)
     }
     public void Init(string name, Colony c, bool isPlayer = false)
     {
@@ -115,6 +140,15 @@ public class Bee : MonoBehaviour, IMsgProc
             startPos += Random.insideUnitSphere * 1.5f;
             startPos.y = 0f;
             transform.position = startPos;
+
+            // 정면 지시선(LineRenderer) 색상을 소속 콜로니 색상으로 변경
+            LineRenderer lr = GetComponent<LineRenderer>();
+            if (lr != null)
+            {
+                Color colColor = colony.flag == eColony.Red ? Color.red : (colony.flag == eColony.Blue ? Color.blue : Color.white);
+                lr.startColor = new Color(colColor.r, colColor.g, colColor.b, 0.8f);
+                lr.endColor = new Color(colColor.r, colColor.g, colColor.b, 0.8f); // 끝까지 불투명하게 유지
+            }
         }
 
         if (isPlayer == true)
@@ -128,7 +162,7 @@ public class Bee : MonoBehaviour, IMsgProc
         {
             var other = allBees[i];
             if (other == null) continue;
-            if (other == this || other.hp <= 0 || other.colony == null || this.colony == null || other.colony.flag == this.colony.flag) continue;
+            if (other == this || other.hp <= 0 || other.strCurState == "Death" || other.colony == null || this.colony == null || other.colony.flag == this.colony.flag) continue;
             float dist = Vector3.Distance(transform.position, other.transform.position);
             if (dist <= detectionRangeCombat)
             {
@@ -206,7 +240,10 @@ public class Bee : MonoBehaviour, IMsgProc
         }
         public void Update()
         {
-
+            if (owner.food >= owner.maxFood * 0.7f)
+            {
+                sm.ChangeState(typeof(Transport));
+            }
         }
         public void Exit()
         {
@@ -230,7 +267,7 @@ public class Bee : MonoBehaviour, IMsgProc
             while (true)
             {
                 targetPos = transform.position + Random.insideUnitSphere * owner.rangeIdle_Roaming;
-                targetPos.y = 0f;
+                targetPos.y = Environment.Instance != null ? Environment.Instance.beeFlightHeight : 0f;
 
                 while (Vector3.Distance(transform.position, targetPos) > 0.1f)
                 {
@@ -265,7 +302,7 @@ public class Bee : MonoBehaviour, IMsgProc
                     owner.targetFlower = c[index].GetComponent<Flower>();
                     if (owner.targetFlower == null) owner.targetFlower = c[index].GetComponentInParent<Flower>();
                     targetPos = c[index].transform.position;
-                    targetPos.y = 0f;
+                    targetPos.y = Environment.Instance != null ? Environment.Instance.beeFlightHeight : 0f;
 
                     owner.StopCoroutine(crRoaming);
 
@@ -295,56 +332,75 @@ public class Bee : MonoBehaviour, IMsgProc
             }
         }
     }
+
     class Gather : SM<Bee>.BaseState, IState
     {
         Coroutine crGathering;
         public Gather(SM<Bee> sm) : base(sm) { }
-        #region - interface -
-        public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic)
-        {
-
-        }
+        public void RegisterEvent(Dictionary<Type, Dictionary<Type, Action<MsgBase>>> ddic) { }
         public void Enter(MsgBase m)
         {
             crGathering = owner.StartCoroutine(Gathering_CR());
         }
-        public void Update()
-        {
-
-        }
+        public void Update() { }
         public void Exit()
         {
-            if (crGathering != null)
-                owner.StopCoroutine(crGathering);
+            if (crGathering != null) owner.StopCoroutine(crGathering);
         }
-        #endregion
 
         IEnumerator Gathering_CR()
         {
-            while (owner.food < owner.maxFood * 0.7f)
+            Transform transform = owner.transform;
+            while (true)
             {
-                yield return new WaitForSeconds(owner.gatheringSpeed);
-
-                int gatherAmount = 1;
-                if (owner.targetFlower != null)
+                if (owner.food >= owner.maxFood)
                 {
-                    int taken = owner.targetFlower.TakeFood(gatherAmount);
-                    owner.food = Mathf.Min(owner.food + taken, owner.maxFood);
-
-                    // 꽃의 채취할 식량이 고갈된 경우, 즉각 중지하고 보유분만 들고 복귀
-                    if (taken == 0 || owner.targetFlower.food <= 0)
-                    {
-                        break;
-                    }
+                    sm.ChangeState(typeof(Transport));
+                    yield break;
                 }
-                else
+
+                if (owner.targetFlower == null)
                 {
-                    owner.food = Mathf.Min(owner.food + gatherAmount, owner.maxFood);
+                    sm.ChangeState(typeof(Idle));
+                    yield break;
+                }
+
+                // 꽃 주변을 배회하며 꽃가루(Pollen)와 충돌 유도
+                Vector3 targetPos = owner.targetFlower.transform.position + UnityEngine.Random.insideUnitSphere * 1.5f;
+                targetPos.y = Environment.Instance != null ? Environment.Instance.beeFlightHeight : 0f;
+
+                float roamTime = 1.0f;
+                float elapsed = 0f;
+                while (elapsed < roamTime)
+                {
+                    elapsed += Time.deltaTime;
+                    if (owner.food >= owner.maxFood)
+                    {
+                        sm.ChangeState(typeof(Transport));
+                        yield break;
+                    }
+
+                    if (Vector3.Distance(transform.position, targetPos) > 0.1f)
+                    {
+                        transform.position = Vector3.MoveTowards(transform.position, targetPos, owner.speedIdle_Roaming * Time.deltaTime);
+                        Vector3 direction = targetPos - transform.position;
+                        if (direction != Vector3.zero)
+                        {
+                            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), 0.2f);
+                        }
+                    }
+                    yield return null;
+                }
+
+                // 꽃의 꿀을 감소시키지만, 벌의 food를 직접 올리지는 않음 (Pollen 충돌로만 획득)
+                int taken = owner.targetFlower.TakeFood(2);
+                if (taken <= 0)
+                {
+                    owner.targetFlower = null;
+                    sm.ChangeState(typeof(Idle));
+                    yield break;
                 }
             }
-
-            owner.targetFlower = null;
-            sm.ChangeState(typeof(Transport));
         }
     }
     class Transport : SM<Bee>.BaseState, IState
@@ -389,7 +445,7 @@ public class Bee : MonoBehaviour, IMsgProc
             while (true)
             {
                 Vector3 targetPos = owner.colony.transform.position;
-                targetPos.y = 0f;
+                targetPos.y = Environment.Instance != null ? Environment.Instance.beeFlightHeight : 0f;
 
                 if (Vector3.Distance(transform.position, targetPos) <= 0.1f)
                 {
@@ -461,10 +517,10 @@ public class Bee : MonoBehaviour, IMsgProc
         {
             Transform transform = owner.transform;
 
-            while ((owner.targetBee != null && owner.targetBee.hp > 0) || (owner.targetColony != null && owner.targetColony.hp > 0))
+            while ((owner.targetBee != null && owner.targetBee.hp > 0 && owner.targetBee.strCurState != "Death") || (owner.targetColony != null && owner.targetColony.hp > 0))
             {
                 Vector3 targetPos = owner.targetBee != null ? owner.targetBee.transform.position : owner.targetColony.transform.position;
-                targetPos.y = 0f;
+                targetPos.y = Environment.Instance != null ? Environment.Instance.beeFlightHeight : 0f;
                 float dist = Vector3.Distance(transform.position, targetPos);
 
                 if (dist <= owner.dashDistance)
@@ -477,14 +533,14 @@ public class Bee : MonoBehaviour, IMsgProc
                     {
                         elapsed += Time.deltaTime;
                         if ((owner.targetBee == null && owner.targetColony == null) ||
-                            (owner.targetBee != null && owner.targetBee.hp <= 0) ||
+                            (owner.targetBee != null && (owner.targetBee.hp <= 0 || owner.targetBee.strCurState == "Death")) ||
                             (owner.targetColony != null && owner.targetColony.hp <= 0))
                         {
                             break;
                         }
 
                         targetPos = owner.targetBee != null ? owner.targetBee.transform.position : owner.targetColony.transform.position;
-                        targetPos.y = 0f;
+                        targetPos.y = Environment.Instance != null ? Environment.Instance.beeFlightHeight : 0f;
                         transform.position = Vector3.MoveTowards(transform.position, targetPos, owner.dashSpeed * Time.deltaTime);
 
                         Vector3 dir = (targetPos - transform.position).normalized;
@@ -496,7 +552,7 @@ public class Bee : MonoBehaviour, IMsgProc
                         yield return null;
                     }
 
-                    if (owner.targetBee != null && owner.targetBee.hp > 0)
+                    if (owner.targetBee != null && owner.targetBee.hp > 0 && owner.targetBee.strCurState != "Death")
                     {
                         Vector3 hitDir = (owner.targetBee.transform.position - transform.position).normalized;
                         hitDir.y = 0f;
@@ -517,10 +573,10 @@ public class Bee : MonoBehaviour, IMsgProc
                         if (owner.targetBee != null)
                             owner.targetBee.MsgProc(new Msg_TakeDamage(finalDamage, hitDir));
 
-                        // 후방 타격이 아닐 경우에만 공격자 넉백 (공격자는 적게 밀림)
+                        // 후방 타격이 아닐 경우에만 공격자 넉백 (공격자는 대상의 절반만큼 밀림)
                         if (angle >= 45f)
                         {
-                            owner.MsgProc(new Msg_TakeDamage(0, -hitDir, 0.3f));
+                            owner.MsgProc(new Msg_TakeDamage(0, -hitDir, 0.5f));
                         }
                         yield break;
                     }
@@ -596,8 +652,8 @@ public class Bee : MonoBehaviour, IMsgProc
                 // Decelerate over time so a new hit (which resets elapsed) is visibly a new knockback
                 float speedMultiplier = Mathf.Lerp(1f, 0f, elapsed / owner.knockbackDuration);
 
-                // Reduce knockback speed to 1/3 and apply deceleration
-                owner.transform.position += dir * ((owner.knockbackSpeed / 6f) * owner.knockbackMultiplier * speedMultiplier * Time.deltaTime);
+                // 넉백 속도를 온전히 적용 (감속 효과 포함)
+                owner.transform.position += dir * (owner.knockbackSpeed * owner.knockbackMultiplier * speedMultiplier * Time.deltaTime);
                 yield return null;
             }
 
@@ -608,21 +664,21 @@ public class Bee : MonoBehaviour, IMsgProc
             }
             else
             {
-                // 밀려남이 끝난 후 5초간 정지 및 스턴 이펙트
+                // 밀려남이 끝난 후 스턴 이펙트 (기존 3.75초에서 1.5초로 대폭 감소)
                 float stunElapsed = 0f;
-                float stunDuration = 5f;
+                float stunDuration = 1.5f;
 
-                // 스턴 이펙트 ZZZ 텍스트 생성
+                // 스턴 이펙트 별 텍스트 생성
                 goStunEffect = new GameObject("StunEffect");
                 goStunEffect.transform.SetParent(owner.transform);
                 goStunEffect.transform.localPosition = new Vector3(0, 1.5f, 0);
                 
                 TextMesh tm = goStunEffect.AddComponent<TextMesh>();
-                tm.text = "ZZZ";
+                tm.text = "★ ★ ★";
                 tm.anchor = TextAnchor.MiddleCenter;
-                tm.characterSize = 0.1f;
-                tm.fontSize = 40;
-                tm.color = Color.yellow;
+                tm.characterSize = 0.05f; // 크기 축소 (기존 0.1f)
+                tm.fontSize = 30; // 폰트 사이즈 축소 (기존 40)
+                tm.color = new Color(1f, 0.8f, 0f); // 쨍한 금/노란색
                 tm.fontStyle = FontStyle.Bold;
 
                 while (stunElapsed < stunDuration)
@@ -637,12 +693,15 @@ public class Bee : MonoBehaviour, IMsgProc
                     float shake = Mathf.Sin(stunElapsed * 40f) * 15f; 
                     owner.transform.localRotation = originalRotation * Quaternion.Euler(0, shake, 0);
 
-                    // 3. ZZZ 이펙트가 위아래로 둥둥 떠다니며 카메라 쳐다보게 함
+                    // 3. 스턴 이펙트가 위아래로 움직이며, 카메라를 바라보되 Z축으로 빙글빙글 돌게 함
                     if (goStunEffect != null)
                     {
-                        goStunEffect.transform.localPosition = new Vector3(0, 1.5f + Mathf.Sin(stunElapsed * 5f) * 0.2f, 0);
+                        goStunEffect.transform.localPosition = new Vector3(0, 1.5f + Mathf.Sin(stunElapsed * 8f) * 0.15f, 0);
                         if (Camera.main != null)
+                        {
                             goStunEffect.transform.forward = Camera.main.transform.forward; // 빌보드 효과
+                            goStunEffect.transform.Rotate(0, 0, stunElapsed * -200f); // 어지럽게 도는 효과 (역방향)
+                        }
                     }
 
                     yield return null;
@@ -745,6 +804,7 @@ public class Bee : MonoBehaviour, IMsgProc
     {
         public Possessed(SM<Bee> sm) : base(sm) { }
         public bool isClicking = false;
+        public bool isMovingToPoint = false;
         public Vector3 destPoint;
         Coroutine crCombat;
         #region - interface -
@@ -763,20 +823,51 @@ public class Bee : MonoBehaviour, IMsgProc
             cf.enabled = true;
             cf.target = owner.transform;
 
-            if ((owner.targetBee != null && owner.targetBee.hp > 0) || (owner.targetColony != null && owner.targetColony.hp > 0))
+            if ((owner.targetBee != null && owner.targetBee.hp > 0 && owner.targetBee.strCurState != "Death") || (owner.targetColony != null && owner.targetColony.hp > 0))
             {
                 crCombat = owner.StartCoroutine(PossessedCombat_CR());
             }
         }
         public void Update()
         {
-            if (isClicking == false)
+            if (crCombat != null) return;
+
+            if (isClicking == false && isMovingToPoint == false)
                 return;
 
             Transform transform = owner.transform;
 
+            // 전역 설정된 비행 고도를 사용합니다.
+            float flightHeight = Environment.Instance != null ? Environment.Instance.beeFlightHeight : transform.position.y;
+
             Vector3 targetPos = destPoint;
-            targetPos.y = 0f;
+            
+            // 쿼터뷰 환경에서 클릭한 바닥 좌표를 벌의 전역 비행 고도로 시각적 오차 없이 끌어올림
+            if (Camera.main != null)
+            {
+                Vector3 camFwd = Camera.main.transform.forward;
+                if (Mathf.Abs(camFwd.y) > 0.001f)
+                {
+                    float k = (flightHeight - destPoint.y) / camFwd.y;
+                    targetPos = destPoint + camFwd * k;
+                }
+                else
+                {
+                    targetPos.y = flightHeight;
+                }
+            }
+            else
+            {
+                targetPos.y = flightHeight;
+            }
+
+            // 벌이 현재 높이에서 벗어났을 경우, 이동 시 자연스럽게 지정된 비행 고도로 맞춰줌
+            Vector3 currentPos = transform.position;
+            if (Mathf.Abs(currentPos.y - flightHeight) > 0.01f)
+            {
+                // Y축(고도) 보정도 부드럽게 이루어지도록 MoveTowards 대상의 고도를 일치시킵니다.
+                // targetPos는 위에서 계산된 목표 지점(X, Z)이며 Y축도 정확히 flightHeight를 가리킵니다.
+            }
 
             if (Vector3.Distance(transform.position, targetPos) > 0.1f)
             {
@@ -787,8 +878,12 @@ public class Bee : MonoBehaviour, IMsgProc
                 Vector3 direction = targetPos - transform.position;
                 if (direction != Vector3.zero)
                 {
-                    transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), 0.1f);
+                    transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), 0.2f);
                 }
+            }
+            else
+            {
+                isMovingToPoint = false;
             }
         }
         public void Exit()
@@ -808,13 +903,14 @@ public class Bee : MonoBehaviour, IMsgProc
                 Bee clickedBee = obj.GetComponent<Bee>();
                 if (clickedBee == null) clickedBee = obj.GetComponentInParent<Bee>();
 
-                if (clickedBee != null && clickedBee != owner && clickedBee.hp > 0)
+                if (clickedBee != null && clickedBee != owner && clickedBee.hp > 0 && clickedBee.strCurState != "Death")
                 {
                     if (owner.colony != null && clickedBee.colony != null && owner.colony.flag != clickedBee.colony.flag)
                     {
                         owner.targetBee = clickedBee;
                         owner.targetColony = null;
                         isClicking = false;
+                        isMovingToPoint = false;
                         if (crCombat != null) owner.StopCoroutine(crCombat);
                         crCombat = owner.StartCoroutine(PossessedCombat_CR());
                         return;
@@ -831,6 +927,7 @@ public class Bee : MonoBehaviour, IMsgProc
                         owner.targetColony = clickedColony;
                         owner.targetBee = null;
                         isClicking = false;
+                        isMovingToPoint = false;
                         if (crCombat != null) owner.StopCoroutine(crCombat);
                         crCombat = owner.StartCoroutine(PossessedCombat_CR());
                         return;
@@ -849,6 +946,7 @@ public class Bee : MonoBehaviour, IMsgProc
             if (isClicking == false)
                 isClicking = true;
 
+            isMovingToPoint = true;
             destPoint = point;
         }
 
@@ -856,7 +954,7 @@ public class Bee : MonoBehaviour, IMsgProc
         {
             Transform transform = owner.transform;
 
-            while ((owner.targetBee != null && owner.targetBee.hp > 0) || (owner.targetColony != null && owner.targetColony.hp > 0))
+            while ((owner.targetBee != null && owner.targetBee.hp > 0 && owner.targetBee.strCurState != "Death") || (owner.targetColony != null && owner.targetColony.hp > 0))
             {
                 Vector3 targetPos = owner.targetBee != null ? owner.targetBee.transform.position : owner.targetColony.transform.position;
                 targetPos.y = 0f;
@@ -871,7 +969,12 @@ public class Bee : MonoBehaviour, IMsgProc
                     while (elapsed < dashTime)
                     {
                         elapsed += Time.deltaTime;
-                        if (owner.targetBee == null && owner.targetColony == null) break;
+                        if ((owner.targetBee == null && owner.targetColony == null) ||
+                            (owner.targetBee != null && (owner.targetBee.hp <= 0 || owner.targetBee.strCurState == "Death")) ||
+                            (owner.targetColony != null && owner.targetColony.hp <= 0))
+                        {
+                            break;
+                        }
                         targetPos = owner.targetBee != null ? owner.targetBee.transform.position : owner.targetColony.transform.position;
                         targetPos.y = 0f;
                         transform.position = Vector3.MoveTowards(transform.position, targetPos, owner.dashSpeed * Time.deltaTime);
@@ -885,7 +988,7 @@ public class Bee : MonoBehaviour, IMsgProc
                         yield return null;
                     }
 
-                    if (owner.targetBee != null && owner.targetBee.hp > 0)
+                    if (owner.targetBee != null && owner.targetBee.hp > 0 && owner.targetBee.strCurState != "Death")
                     {
                         Vector3 hitDir = (owner.targetBee.transform.position - transform.position).normalized;
                         hitDir.y = 0f;
@@ -906,10 +1009,10 @@ public class Bee : MonoBehaviour, IMsgProc
                         if (owner.targetBee != null)
                             owner.targetBee.MsgProc(new Msg_TakeDamage(finalDamage, hitDir));
 
-                        // 후방 타격이 아닐 경우에만 공격자 넉백 (공격자는 적게 밀림)
+                        // 후방 타격이 아닐 경우에만 공격자 넉백 (공격자는 대상의 절반만큼 밀림)
                         if (angle >= 45f)
                         {
-                            owner.MsgProc(new Msg_TakeDamage(0, -hitDir, 0.3f));
+                            owner.MsgProc(new Msg_TakeDamage(0, -hitDir, 0.5f));
                         }
                         yield break;
                     }

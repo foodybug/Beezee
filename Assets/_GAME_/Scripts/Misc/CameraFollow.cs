@@ -19,9 +19,24 @@ public class CameraFollow : MonoBehaviour
     private float zoomVelocity = 0f;
     private Camera cam;
 
+    [Header("Quarter View (Isometric)")]
+    public bool useQuarterView = true;
+    public Vector3 quarterViewRotation = new Vector3(45f, 0f, 0f);
+
     private void Start()
     {
         cam = GetComponent<Camera>();
+
+        // 씬에 이미 컴포넌트가 있어서 기본값(true)이 무시되고 false로 저장되어 있을 수 있으므로 강제로 켭니다.
+        useQuarterView = true;
+
+        if (useQuarterView)
+        {
+            if (cam != null) cam.orthographic = true;
+            transform.rotation = Quaternion.Euler(quarterViewRotation);
+            // 카메라가 바라보는 방향의 반대쪽으로 오프셋을 설정하여 타겟을 내려다보게 함
+            offset = -transform.forward * 10f;
+        }
 
         if (offset != Vector3.zero)
         {
@@ -69,7 +84,7 @@ public class CameraFollow : MonoBehaviour
             // 이동과 줌의 ref velocity를 분리하여 위치 갱신
             transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref moveVelocity, smoothTime);
 
-            transform.LookAt(target.position);
+            // transform.LookAt(target.position); // 회전하지 않도록 주석 처리
         }
     }
 }

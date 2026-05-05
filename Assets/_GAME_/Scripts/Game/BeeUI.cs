@@ -108,6 +108,7 @@ public class BeeUI : MonoBehaviour
                 outline.effectColor = Color.black;
                 outline.effectDistance = new Vector2(1, -1);
             }
+            colonyIndicator.gameObject.SetActive(false);
 
             isInitialized = true;
         }
@@ -123,6 +124,12 @@ public class BeeUI : MonoBehaviour
         if (!isInitialized) return;
         if (mainCam == null) mainCam = Camera.main;
         if (mainCam == null || bee == null) return;
+
+        if (bee.strCurState == "Death")
+        {
+            gameObject.SetActive(false);
+            return;
+        }
 
         // bee의 월드 좌표를 스크린 좌표로 변환
         Vector3 worldPos = bee.transform.position + worldOffset;

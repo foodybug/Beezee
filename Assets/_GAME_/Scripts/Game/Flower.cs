@@ -14,6 +14,27 @@ public class Flower : MonoBehaviour
     {
         food = maxFood;
 
+        // Spawn initial Pollen
+        GameObject pollenObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        pollenObj.name = "Pollen";
+        // pollenObj.transform.SetParent(this.transform); 
+        // 쪼개질 때 크기 계산 등 문제 생기지 않도록 부모 설정 안함
+        pollenObj.transform.position = transform.position + new Vector3(0, 2f, 0); 
+        pollenObj.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+        
+        Renderer renderer = pollenObj.GetComponent<Renderer>();
+        renderer.material.color = Color.yellow;
+        
+        SphereCollider sc = pollenObj.GetComponent<SphereCollider>();
+        sc.isTrigger = true;
+        
+        Rigidbody rb = pollenObj.AddComponent<Rigidbody>();
+        rb.useGravity = true;
+        rb.linearDamping = 4f; // 공기 저항을 늘려서 초반 속도는 빠르되 멀리 날아가지 않게 함
+        
+        Pollen pScript = pollenObj.AddComponent<Pollen>();
+        pScript.splitCount = 0;
+
         // 동적으로 캔버스와 슬라이더 생성
         GameObject canvasObj = new GameObject("FlowerCanvas");
         canvasObj.transform.SetParent(this.transform, false);
