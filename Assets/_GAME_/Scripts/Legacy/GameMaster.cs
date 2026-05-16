@@ -19,9 +19,9 @@ public class GameMaster : MonoBehaviour, IMsgProc
 
     void Start()
     {
-        for (int i = 0; i < (int)eColony.MAX; ++i)
+        for (int i = 0; i < listColony.Count && i < (int)eColony.MAX; ++i)
         {
-            var c = Instantiate(listColony[i]);
+            var c = listColony[i];
             c.Init((eColony)i);
             c.transform.SetParent(environment.transform);
         }

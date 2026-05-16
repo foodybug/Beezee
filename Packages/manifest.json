@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.antigravity.ide": "https://github.com/billythekidz/UnityAntigravityIDE.git",
     "com.unity.collab-proxy": "2.11.4",
     "com.unity.feature.development": "1.0.2",
     "com.unity.ide.rider": "3.0.28",

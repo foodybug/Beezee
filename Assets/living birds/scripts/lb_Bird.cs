@@ -562,6 +562,7 @@ public class lb_Bird : MonoBehaviour {
 	}
 
 	void Update () {
+		if (controller == null) return;
 		if(onGround && !paused && !dead){
 			OnGroundBehaviors();	
 		}

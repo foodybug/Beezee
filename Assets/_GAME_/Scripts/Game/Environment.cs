@@ -8,6 +8,9 @@ public class Environment : MonoBehaviour
 
     [Header("Global Height Settings")]
     public float beeFlightHeight = 5f;
+    
+    [Header("World Settings")]
+    public Vector2 worldSize = new Vector2(50f, 50f);
 
     [Header("Environment References")]
     [SerializeField] GameObject terrain;

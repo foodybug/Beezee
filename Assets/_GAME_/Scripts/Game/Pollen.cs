@@ -21,9 +21,20 @@ public class Pollen : MonoBehaviour
     private static Collider[] overlapResults = new Collider[50]; // OverlapSphere 할당 제거용 배열
     private float nextSearchTime = 0f;
     // ------------------------------------------------
+    private static Transform pollenRoot;
 
     void Awake()
     {
+        if (pollenRoot == null)
+        {
+            GameObject rootObj = GameObject.Find("PollenRoot");
+            if (rootObj == null)
+            {
+                rootObj = new GameObject("PollenRoot");
+            }
+            pollenRoot = rootObj.transform;
+        }
+        transform.SetParent(pollenRoot);
         Collider col = GetComponentInChildren<Collider>();
         if (col != null) col.isTrigger = true;
 
@@ -75,7 +86,10 @@ public class Pollen : MonoBehaviour
 
     void Split(Vector3 splitDirection, Bee hitBee)
     {
-        for (int i = 0; i < 2; i++)
+        bool isLastSplit = (splitCount == maxSplits - 1);
+        int piecesToSpawn = isLastSplit ? 6 : 2;
+
+        for (int i = 0; i < piecesToSpawn; i++)
         {
             Pollen pScript = null;
             
@@ -111,14 +125,30 @@ public class Pollen : MonoBehaviour
                 pScript.targetBee = null;
             }
             
-            pScript.transform.localScale = transform.localScale * 0.8f;
+            if (isLastSplit)
+            {
+                pScript.transform.localScale = transform.localScale * 0.4f; // 마지막엔 크기를 더욱 줄임
+            }
+            else
+            {
+                pScript.transform.localScale = transform.localScale * 0.8f;
+            }
             
             Rigidbody rb = pScript.GetComponent<Rigidbody>();
             if (rb != null)
             {
                 rb.isKinematic = false; // 흡수 시 켜졌을 수 있는 kinematic 리셋
                 
-                float angle = (i == 0) ? -60f : 60f;
+                float angle = 0f;
+                if (isLastSplit)
+                {
+                    angle = i * 60f; // 육각형 방향 (0, 60, 120, 180, 240, 300)
+                }
+                else
+                {
+                    angle = (i == 0) ? -60f : 60f; // 두 갈래
+                }
+                
                 // 수평(XZ) 평면으로만 방향을 설정합니다.
                 Vector3 forceDir = Quaternion.Euler(0, angle, 0) * splitDirection;
                 forceDir.y = 0f; // 상하(Y) 튀어오름 완전 제거

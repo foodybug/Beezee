@@ -8,12 +8,12 @@ public class CameraFollow : MonoBehaviour
     private Vector3 curOffset;
 
     [Header("Zoom Settings")]
-    public float zoomSensitivity = 15f; // 줌 속도 대폭 상향
     public float minZoom = 0.5f;        // 줌 인 범위를 늘려 오브젝트를 크게 볼 수 있도록 설정
-    public float maxZoom = 25f;
+    public float maxZoom = 12.5f;
     
     private float targetDistance = 10f;
     private float curDistance = 10f;
+    private int currentZoomStep = 1; // 0: minZoom, 1: midZoom, 2: maxZoom
 
     private Vector3 moveVelocity = Vector3.zero;
     private float zoomVelocity = 0f;
@@ -40,9 +40,20 @@ public class CameraFollow : MonoBehaviour
 
         if (offset != Vector3.zero)
         {
-            targetDistance = offset.magnitude;
+            float initialMag = offset.magnitude;
+            float midZoom = (minZoom + maxZoom) / 2f;
+            
+            // 초기 거리에 가장 가까운 줌 단계 설정
+            if (Mathf.Abs(initialMag - minZoom) < Mathf.Abs(initialMag - midZoom))
+                currentZoomStep = 0;
+            else if (Mathf.Abs(initialMag - maxZoom) < Mathf.Abs(initialMag - midZoom))
+                currentZoomStep = 2;
+            else
+                currentZoomStep = 1;
+
+            targetDistance = GetZoomLevel(currentZoomStep);
             curDistance = targetDistance;
-            curOffset = offset;
+            curOffset = offset.normalized * curDistance;
         }
 
         if (cam != null && cam.orthographic && offset != Vector3.zero)
@@ -51,15 +62,41 @@ public class CameraFollow : MonoBehaviour
         }
     }
 
+    private float GetZoomLevel(int step)
+    {
+        if (step == 0) return minZoom;
+        if (step == 1) return (minZoom + maxZoom) / 2f;
+        return maxZoom;
+    }
+
+    // 마우스 휠 입력을 프레임당 한 번씩만 처리하기 위한 쿨다운 (빠른 스크롤 방지)
+    private float scrollCooldown = 0f;
+
     private void Update()
     {
+        if (scrollCooldown > 0f)
+            scrollCooldown -= Time.deltaTime;
+
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         
-        // 스크롤 입력이 있을 때 목표 거리 갱신
-        if (scroll != 0f && offset != Vector3.zero)
+        // 스크롤 입력이 있을 때 3단계 줌 적용
+        if (scroll != 0f && offset != Vector3.zero && scrollCooldown <= 0f)
         {
-            targetDistance -= scroll * zoomSensitivity;
-            targetDistance = Mathf.Clamp(targetDistance, minZoom, maxZoom);
+            if (scroll > 0f)
+            {
+                // Zoom in
+                currentZoomStep--;
+                if (currentZoomStep < 0) currentZoomStep = 0;
+            }
+            else if (scroll < 0f)
+            {
+                // Zoom out
+                currentZoomStep++;
+                if (currentZoomStep > 2) currentZoomStep = 2;
+            }
+            
+            targetDistance = GetZoomLevel(currentZoomStep);
+            scrollCooldown = 0.15f; // 약간의 쿨다운을 주어 한 번의 휠 굴림에 여러 단계 건너뛰는 것을 방지
         }
 
         // 스크롤 유무와 상관없이 매 프레임 SmoothDamp를 수행하여 뚝뚝 끊기지 않게 함
@@ -83,8 +120,6 @@ public class CameraFollow : MonoBehaviour
 
             // 이동과 줌의 ref velocity를 분리하여 위치 갱신
             transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref moveVelocity, smoothTime);
-
-            // transform.LookAt(target.position); // 회전하지 않도록 주석 처리
         }
     }
 }

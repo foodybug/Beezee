@@ -1,0 +1,5 @@
+{
+  "csharpCode": "using UnityEngine;\nusing UnityEditor;\npublic class CreateBirdVariant { public static object Main() { string sourcePath = \"Assets/living birds/resources/lb_sparrow.prefab\"; GameObject sourcePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(sourcePath); if (sourcePrefab == null) { sourcePath = \"Assets/Quirky Series Ultimate/FREE/Prefabs/Sparrow.prefab\"; sourcePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(sourcePath); } if (sourcePrefab == null) return \"Source prefab not found!\"; GameObject instance = (GameObject)PrefabUtility.InstantiatePrefab(sourcePrefab); Component[] comps = instance.GetComponents<MonoBehaviour>(); foreach (var comp in comps) { if (comp.GetType().Name.Contains(\"lb_Bird\")) GameObject.DestroyImmediate(comp); } instance.AddComponent<Bird>(); string targetPath = \"Assets/_GAME_/Prefabs/Bird.prefab\"; PrefabUtility.SaveAsPrefabAsset(instance, targetPath); GameObject.DestroyImmediate(instance); return \"Successfully created Bird.prefab variant at \" + targetPath; } }",
+  "className": "CreateBirdVariant",
+  "methodName": "Main"
+}

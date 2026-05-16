@@ -1,4 +1,14 @@
 {
+    "dotnet.defaultSolution": "Beezee.sln",
+    "dotnet.dotnetPath": "C:/Program Files/dotnet/dotnet.exe",
+    "dotrush.roslyn.dotnetSdkDirectory": "C:/Program Files/dotnet/sdk/9.0.310",
+    "dotrush.msbuildProperties": {
+        "DefineConstants": "UNITY_EDITOR"
+    },
+    "dotrush.roslyn.projectOrSolutionFiles": [
+        "D:/_YDE/_Develope/_PRIVATE_PROJECT/Beezee/Beezee.sln"
+    ],
+    "dotrush.roslyn.restoreProjectsBeforeLoading": false,
     "files.exclude": {
         "**/.DS_Store": true,
         "**/.git": true,
@@ -55,20 +65,5 @@
         "UserSettings/": true,
         "temp/": true,
         "Temp/": true
-    },
-    "files.associations": {
-        "*.asset": "yaml",
-        "*.meta": "yaml",
-        "*.prefab": "yaml",
-        "*.unity": "yaml",
-    },
-    "explorer.fileNesting.enabled": true,
-    "explorer.fileNesting.patterns": {
-        "*.sln": "*.csproj",
-        "*.slnx": "*.csproj"
-    },
-    "dotnet.defaultSolution": "Beezee.slnx",
-    "dotrush.roslyn.projectOrSolutionFiles": [
-        "d:\\_YDE\\_Develope\\_PRIVATE_PROJECT\\Beezee\\Beezee.sln"
-    ]
+    }
 }
